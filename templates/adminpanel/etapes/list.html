@@ -1,0 +1,84 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}Étapes — Admin{% endblock %}
+{% block breadcrumb %}Étapes des dossiers{% endblock %}
+{% block topbar_actions %}<a href="{% url 'admin_etape_globale_create' %}" class="topbar-btn topbar-btn-primary">+ Ajouter étape</a>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Étapes des dossiers</h1>
+    <p class="page-sub">Ces étapes s'appliquent automatiquement à tous les dossiers. Vous les cochez individuellement par dossier.</p>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">⚙ Étapes Techniques</span>
+      <span class="badge {% if total_tech == 100 %}badge-green{% elif total_tech > 100 %}badge-red{% else %}badge-yellow{% endif %}">
+        Total : {{ total_tech }}%
+      </span>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Ordre</th><th>Étape</th><th>%</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for e in etapes_tech %}
+          <tr>
+            <td style="color:var(--muted)">{{ e.order }}</td>
+            <td><strong>{{ e.name }}</strong>{% if e.description %}<br><span style="font-size:12px;color:var(--muted)">{{ e.description|truncatechars:60 }}</span>{% endif %}</td>
+            <td><strong style="color:var(--navy)">{{ e.percentage }}%</strong></td>
+            <td style="white-space:nowrap">
+              <a href="{% url 'admin_etape_globale_edit' e.pk %}" class="btn btn-outline btn-xs">Modifier</a>
+              <form method="post" action="{% url 'admin_etape_globale_delete' e.pk %}" style="display:inline" onsubmit="return confirm('Supprimer cette étape de TOUS les dossiers ?')">
+                {% csrf_token %}<button type="submit" class="btn btn-danger btn-xs">✕</button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" style="text-align:center;padding:32px;color:var(--muted)">Aucune étape technique</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if total_tech < 100 %}
+    <div style="padding:16px 24px;background:rgba(251,191,36,.06);border-top:1px solid var(--border);font-size:13px;color:#92400e">
+      ⚠ Il reste <strong>{{ 100|add:"-0" }}</strong> % à définir
+      (disponible : <strong>{% widthratio 100 1 1 %}</strong>)
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🗺 Étapes Morcellement</span>
+      <span class="badge {% if total_morc == 100 %}badge-green{% elif total_morc > 100 %}badge-red{% else %}badge-yellow{% endif %}">
+        Total : {{ total_morc }}%
+      </span>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Ordre</th><th>Étape</th><th>%</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for e in etapes_morc %}
+          <tr>
+            <td style="color:var(--muted)">{{ e.order }}</td>
+            <td><strong>{{ e.name }}</strong>{% if e.description %}<br><span style="font-size:12px;color:var(--muted)">{{ e.description|truncatechars:60 }}</span>{% endif %}</td>
+            <td><strong style="color:var(--navy)">{{ e.percentage }}%</strong></td>
+            <td style="white-space:nowrap">
+              <a href="{% url 'admin_etape_globale_edit' e.pk %}" class="btn btn-outline btn-xs">Modifier</a>
+              <form method="post" action="{% url 'admin_etape_globale_delete' e.pk %}" style="display:inline" onsubmit="return confirm('Supprimer cette étape de TOUS les dossiers ?')">
+                {% csrf_token %}<button type="submit" class="btn btn-danger btn-xs">✕</button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" style="text-align:center;padding:32px;color:var(--muted)">Aucune étape morcellement</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

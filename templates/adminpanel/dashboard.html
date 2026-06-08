@@ -1,0 +1,132 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}Dashboard — Admin EDEN GROUP{% endblock %}
+{% block breadcrumb %}Tableau de bord{% endblock %}
+
+{% block extra_css %}
+<style>
+.dash-grid{display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-top:24px}
+@media(max-width:1000px){.dash-grid{grid-template-columns:1fr}}
+.rsv-item{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)}
+.rsv-item:last-child{border-bottom:none}
+.rsv-avatar{width:36px;height:36px;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
+.rsv-info{flex:1;min-width:0}
+.rsv-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rsv-meta{font-size:12px;color:var(--muted)}
+.quick-links{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.quick-link{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 12px;background:var(--gray);border-radius:var(--radius-sm);border:1px solid var(--border);transition:all .2s;text-align:center}
+.quick-link:hover{background:#fff;box-shadow:var(--shadow);transform:translateY(-2px)}
+.quick-link-icon{font-size:20px}
+.quick-link-label{font-size:11px;font-weight:600;color:var(--navy);letter-spacing:.5px;text-transform:uppercase}
+.alerte-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.alerte-row:last-child{border-bottom:none}
+.alerte-days{background:rgba(245,158,11,.12);color:#92400e;font-weight:700;font-size:12px;padding:4px 10px;border-radius:4px;white-space:nowrap;flex-shrink:0}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Bonjour, {{ request.user.first_name|default:request.user.username }} 👋</h1>
+    <p class="page-sub">Voici un aperçu de votre activité Eden Group</p>
+  </div>
+</div>
+
+{% if alerte_45j_count > 0 %}
+<div class="notif-banner">
+  <div class="notif-banner-icon">⚠️</div>
+  <div class="notif-banner-text">
+    <strong>{{ alerte_45j_count }} dossier{{ alerte_45j_count|pluralize }} en cours</strong> ont atteint ou dépassé 45 jours sans être complétés.
+    <a href="{% url 'admin_dossiers_alerte' %}" style="color:#92400e;font-weight:600;text-decoration:underline;margin-left:8px">Voir la liste →</a>
+  </div>
+</div>
+{% endif %}
+
+<div class="stat-cards">
+  <div class="stat-card">
+    <div class="stat-icon stat-icon-blue">👤</div>
+    <div><div class="stat-num">{{ total_clients }}</div><div class="stat-label">Clients</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon-green">🏡</div>
+    <div><div class="stat-num">{{ total_properties }}</div><div class="stat-label">Terrains</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon-blue">📁</div>
+    <div><div class="stat-num">{{ total_dossiers }}</div><div class="stat-label">Dossiers</div></div>
+  </div>
+  <div class="stat-card" style="border-color:{% if total_reservations > 0 %}rgba(193,18,31,.2){% else %}var(--border){% endif %}">
+    <div class="stat-icon stat-icon-red">📅</div>
+    <div><div class="stat-num">{{ total_reservations }}</div><div class="stat-label">Demandes en attente</div></div>
+  </div>
+</div>
+
+<div class="dash-grid">
+  <div>
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-header">
+        <span class="card-title">Dernières réservations</span>
+        <a href="{% url 'admin_reservations' %}" class="btn btn-outline btn-sm">Voir tout</a>
+      </div>
+      <div style="padding:0 24px">
+        {% for r in recent_reservations %}
+        <div class="rsv-item">
+          <div class="rsv-avatar">{{ r.name|first|upper }}</div>
+          <div class="rsv-info">
+            <div class="rsv-name">{{ r.name }}</div>
+            <div class="rsv-meta">{{ r.phone }} · {{ r.created_at|date:"d/m/Y" }}</div>
+          </div>
+          <span class="badge {% if r.status == 'pending' %}badge-yellow{% elif r.status == 'confirmed' %}badge-green{% else %}badge-gray{% endif %}">{{ r.get_status_display }}</span>
+        </div>
+        {% empty %}
+        <div style="padding:24px 0;text-align:center;color:var(--muted)">Aucune réservation</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if dossiers_alerte %}
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">⚠ Dossiers +45 jours en cours</span>
+        <a href="{% url 'admin_dossiers_alerte' %}" class="btn btn-outline btn-sm">Voir tout</a>
+      </div>
+      <div style="padding:0 24px">
+        {% for d in dossiers_alerte %}
+        <div class="alerte-row">
+          <span class="alerte-days">{{ d.get_jours_existence }}j</span>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500">{{ d.title }}</div>
+            <div style="font-size:12px;color:var(--muted)">{{ d.client.get_full_name|default:d.client.username }} · {{ d.reference }}</div>
+          </div>
+          <a href="{% url 'admin_dossier_detail' d.pk %}" class="btn btn-outline btn-xs">Gérer</a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:20px">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Accès rapides</span></div>
+      <div class="card-body">
+        <div class="quick-links">
+          <a href="{% url 'admin_property_create' %}" class="quick-link"><span class="quick-link-icon">🏡</span><span class="quick-link-label">Ajouter terrain</span></a>
+          <a href="{% url 'admin_client_create' %}" class="quick-link"><span class="quick-link-icon">👤</span><span class="quick-link-label">Créer client</span></a>
+          <a href="{% url 'admin_dossier_create' %}" class="quick-link"><span class="quick-link-icon">📁</span><span class="quick-link-label">Nouveau dossier</span></a>
+          <a href="{% url 'admin_promotion_create' %}" class="quick-link"><span class="quick-link-icon">🎁</span><span class="quick-link-label">Promotion</span></a>
+        </div>
+      </div>
+    </div>
+    {% if unknown_questions > 0 %}
+    <div class="card" style="border-color:rgba(193,18,31,.15)">
+      <div class="card-body" style="text-align:center">
+        <div style="font-size:28px;margin-bottom:8px">🤖</div>
+        <div style="font-size:15px;font-weight:600;color:var(--navy);margin-bottom:4px">{{ unknown_questions }} question{{ unknown_questions|pluralize }}</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:14px">non reconnue{{ unknown_questions|pluralize }} par Martin Martin</div>
+        <a href="{% url 'admin_chatbot' %}" class="btn btn-primary btn-sm" style="width:100%;justify-content:center">Enrichir la base →</a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

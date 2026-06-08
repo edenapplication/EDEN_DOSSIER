@@ -1,0 +1,34 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}Terrains — Admin{% endblock %}
+{% block breadcrumb %}Terrains{% endblock %}
+{% block topbar_actions %}<a href="{% url 'admin_property_create' %}" class="topbar-btn topbar-btn-primary">+ Ajouter terrain</a>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Terrains</h1><p class="page-sub">{{ properties.count }} terrain{{ properties.count|pluralize }}</p></div>
+</div>
+<div class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Image</th><th>Titre</th><th>Localisation</th><th>Superficie</th><th>Prix</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for p in properties %}
+        <tr>
+          <td>{% if p.main_image %}<img src="{{ p.main_image.url }}" style="width:56px;height:44px;object-fit:cover;border-radius:4px">{% else %}<div style="width:56px;height:44px;background:var(--gradient);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;opacity:.5">🏡</div>{% endif %}</td>
+          <td><strong>{{ p.title }}</strong>{% if p.is_featured %} <span class="badge badge-yellow" style="margin-left:8px">Coup de cœur</span>{% endif %}</td>
+          <td>{{ p.location }}</td>
+          <td>{{ p.area }} m²</td>
+          <td>{{ p.get_price_display }}</td>
+          <td><span class="badge {% if p.is_active %}badge-green{% else %}badge-gray{% endif %}">{% if p.is_active %}Actif{% else %}Inactif{% endif %}</span></td>
+          <td style="white-space:nowrap">
+            <a href="{% url 'admin_property_edit' p.pk %}" class="btn btn-outline btn-xs">Modifier</a>
+            <form method="post" action="{% url 'admin_property_delete' p.pk %}" style="display:inline" onsubmit="return confirm('Supprimer ce terrain ?')">{% csrf_token %}<button type="submit" class="btn btn-danger btn-xs">Supprimer</button></form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center;padding:48px;color:var(--muted)">Aucun terrain</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

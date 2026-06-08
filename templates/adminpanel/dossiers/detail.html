@@ -1,0 +1,266 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}Dossier {{ dossier.reference }} — Admin{% endblock %}
+{% block breadcrumb %}<a href="{% url 'admin_dossiers' %}">Dossiers</a> › {{ dossier.reference }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:20px}
+.tab{padding:12px 20px;font-size:13px;font-weight:500;color:var(--muted);border-bottom:2.5px solid transparent;cursor:pointer;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;transition:all .2s}
+.tab.active{color:var(--navy);border-bottom-color:var(--red)}
+.panel{display:none}.panel.active{display:block}
+.donut-wrap{display:flex;align-items:center;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+.donut-container{position:relative;width:110px;height:110px;flex-shrink:0}
+.donut-label{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
+.donut-pct{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:var(--navy);line-height:1}
+.donut-sub{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.current-etape-msg{background:linear-gradient(135deg,rgba(11,31,58,.05),rgba(193,18,31,.04));border-left:3px solid var(--red);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--navy);line-height:1.6}
+.current-etape-msg strong{color:var(--red)}
+.etape-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.etape-row:last-child{border-bottom:none}
+.toggle-btn{width:24px;height:24px;border-radius:50%;border:2px solid var(--border);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .25s;flex-shrink:0}
+.toggle-btn.done{background:var(--gradient);border-color:transparent;color:#fff}
+.toggle-btn:hover:not(:disabled){border-color:var(--navy)}
+.toggle-btn:disabled{opacity:.35;cursor:not-allowed}
+.toggle-btn.last-etape{border-color:var(--red);border-width:2px}
+.locked-banner{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;color:#92400e;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.auto-info{background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.15);border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:#6d28d9;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.hist-row{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px}
+.hist-row:last-child{border-bottom:none}
+.hist-dot{width:5px;height:5px;border-radius:50%;background:var(--red);flex-shrink:0;margin-top:5px}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ dossier.title }}</h1>
+    <p class="page-sub">{{ dossier.reference }} · {{ dossier.client.get_full_name|default:dossier.client.username }} · Créé il y a {{ dossier.get_jours_existence }} jours</p>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <span class="badge {% if dossier.is_complete %}badge-green{% else %}badge-yellow{% endif %}">{{ dossier.get_statut_display }}</span>
+    {% if dossier.is_alerte_45j %}
+    <span class="badge badge-orange">⚠ +45 jours</span>
+    {% endif %}
+    <form method="post" action="{% url 'admin_dossier_delete' dossier.pk %}" onsubmit="return confirm('Supprimer ce dossier ?')">
+      {% csrf_token %}<button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
+    </form>
+  </div>
+</div>
+
+<div class="auto-info">
+  🤖 <strong>Cochage automatique actif</strong> — 1 étape/semaine (sauf la dernière de chaque section, cochée manuellement obligatoirement).
+  Vous pouvez cocher/décocher manuellement à tout moment.
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:start">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Avancement du dossier</span></div>
+    <div class="card-body">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab(this,'tech')">⚙ Technique</button>
+        <button class="tab" onclick="switchTab(this,'morc')">🗺 Morcellement {% if morc_locked %}🔒{% endif %}</button>
+      </div>
+
+      <div class="panel active" id="panel-tech">
+        <div class="donut-wrap">
+          <div class="donut-container">
+            <canvas id="donut-tech" width="110" height="110"></canvas>
+            <div class="donut-label">
+              <div class="donut-pct" id="tech-pct-label">{{ prog_tech }}%</div>
+              <div class="donut-sub">tech</div>
+            </div>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Avancement technique</div>
+            <div class="progress-bar-wrap" style="height:6px;margin-bottom:6px">
+              <div class="progress-bar" id="prog-tech-bar" style="width:{{ pct_tech_bar }}%"></div>
+            </div>
+            <div style="font-size:12px;color:var(--muted)">{{ prog_tech }} / {{ total_tech }}%</div>
+          </div>
+        </div>
+        {% if current_tech %}
+        <div class="current-etape-msg" id="msg-tech">
+          {{ dossier.client.get_full_name|default:dossier.client.username }}, votre dossier est actuellement à l'étape <strong>{{ current_tech.name }}</strong>{% if current_tech.description %} — {{ current_tech.description }}{% endif %}
+        </div>
+        {% else %}
+        <div class="current-etape-msg" id="msg-tech" style="display:none"></div>
+        {% endif %}
+        {% for item in etapes_tech %}
+        <div class="etape-row">
+          <button class="toggle-btn {% if item.is_done %}done{% endif %} {% if item.etape.pk == last_tech_id %}last-etape{% endif %}"
+            id="btn-tech-{{ item.etape.pk }}"
+            onclick="toggleEtape({{ dossier.pk }}, {{ item.etape.pk }}, 'tech')"
+            title="{% if item.etape.pk == last_tech_id %}Dernière étape — cochage manuel obligatoire{% elif item.is_done %}Annuler{% else %}Valider{% endif %}">
+            {% if item.is_done %}✓{% endif %}
+          </button>
+          <div style="flex:1">
+            <div style="font-size:13.5px;{% if item.is_done %}font-weight:500;color:var(--navy){% else %}color:var(--text){% endif %}">
+              {{ item.etape.name }}
+              {% if item.etape.pk == last_tech_id %}<span style="font-size:11px;color:var(--red);margin-left:6px">★ Manuelle</span>{% endif %}
+              {% if item.is_auto and item.etape.pk != last_tech_id %}<span class="badge badge-auto" style="margin-left:6px">Auto</span>{% endif %}
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--muted)">{{ item.etape.percentage }}%</div>
+        </div>
+        {% empty %}
+        <div style="padding:24px;text-align:center;color:var(--muted)">Aucune étape. <a href="{% url 'admin_etapes_globales' %}" style="color:var(--red)">Créer →</a></div>
+        {% endfor %}
+      </div>
+
+      <div class="panel" id="panel-morc">
+        {% if morc_locked %}
+        <div class="locked-banner">🔒 Le morcellement est accessible uniquement quand le technique est à 100%.</div>
+        {% endif %}
+        <div class="donut-wrap">
+          <div class="donut-container">
+            <canvas id="donut-morc" width="110" height="110"></canvas>
+            <div class="donut-label">
+              <div class="donut-pct" id="morc-pct-label">{{ prog_morc }}%</div>
+              <div class="donut-sub">morc.</div>
+            </div>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Avancement morcellement</div>
+            <div class="progress-bar-wrap" style="height:6px;margin-bottom:6px">
+              <div class="progress-bar" id="prog-morc-bar" style="width:{{ pct_morc_bar }}%"></div>
+            </div>
+            <div style="font-size:12px;color:var(--muted)">{{ prog_morc }} / {{ total_morc }}%</div>
+          </div>
+        </div>
+        {% if current_morc %}
+        <div class="current-etape-msg" id="msg-morc">
+          {{ dossier.client.get_full_name|default:dossier.client.username }}, votre dossier est actuellement à l'étape <strong>{{ current_morc.name }}</strong>{% if current_morc.description %} — {{ current_morc.description }}{% endif %}
+        </div>
+        {% else %}
+        <div class="current-etape-msg" id="msg-morc" style="display:none"></div>
+        {% endif %}
+        {% for item in etapes_morc %}
+        <div class="etape-row">
+          <button class="toggle-btn {% if item.is_done %}done{% endif %} {% if item.etape.pk == last_morc_id %}last-etape{% endif %}"
+            id="btn-morc-{{ item.etape.pk }}"
+            onclick="toggleEtape({{ dossier.pk }}, {{ item.etape.pk }}, 'morc')"
+            {% if morc_locked %}disabled title="Technique non complété"{% else %}title="{% if item.etape.pk == last_morc_id %}Dernière étape — cochage manuel{% elif item.is_done %}Annuler{% else %}Valider{% endif %}"{% endif %}>
+            {% if item.is_done %}✓{% endif %}
+          </button>
+          <div style="flex:1">
+            <div style="font-size:13.5px;{% if item.is_done %}font-weight:500;color:var(--navy){% else %}color:{% if morc_locked %}var(--muted){% else %}var(--text){% endif %}{% endif %}">
+              {{ item.etape.name }}
+              {% if item.etape.pk == last_morc_id %}<span style="font-size:11px;color:var(--red);margin-left:6px">★ Manuelle</span>{% endif %}
+              {% if item.is_auto and item.etape.pk != last_morc_id %}<span class="badge badge-auto" style="margin-left:6px">Auto</span>{% endif %}
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--muted)">{{ item.etape.percentage }}%</div>
+        </div>
+        {% empty %}
+        <div style="padding:24px;text-align:center;color:var(--muted)">Aucune étape. <a href="{% url 'admin_etapes_globales' %}" style="color:var(--red)">Créer →</a></div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:16px">
+    {% if dossier.photo %}
+    <div class="card" style="overflow:hidden">
+      <img src="{{ dossier.photo.url }}" style="width:100%;height:160px;object-fit:cover">
+    </div>
+    {% endif %}
+    <div class="card">
+      <div class="card-header"><span class="card-title">Informations</span></div>
+      <div class="card-body">
+        <table style="width:100%;font-size:13px;border-collapse:collapse">
+          <tr><td style="padding:7px 0;color:var(--muted)">Client</td><td style="padding:7px 0;font-weight:500">{{ dossier.client.get_full_name|default:dossier.client.username }}</td></tr>
+          <tr><td style="padding:7px 0;color:var(--muted)">Référence</td><td style="padding:7px 0;font-size:12px">{{ dossier.reference }}</td></tr>
+          <tr><td style="padding:7px 0;color:var(--muted)">Existence</td><td style="padding:7px 0"><strong>{{ dossier.get_jours_existence }} jours</strong></td></tr>
+          {% if dossier.superficie %}<tr><td style="padding:7px 0;color:var(--muted)">Superficie</td><td style="padding:7px 0">{{ dossier.superficie }} m²</td></tr>{% endif %}
+          {% if dossier.date_paiement %}<tr><td style="padding:7px 0;color:var(--muted)">Paiement</td><td style="padding:7px 0">{{ dossier.date_paiement|date:"d/m/Y" }}</td></tr>{% endif %}
+          {% if dossier.property_link %}<tr><td style="padding:7px 0;color:var(--muted)">Terrain</td><td style="padding:7px 0">{{ dossier.property_link.title }}</td></tr>{% endif %}
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Historique</span></div>
+      <div style="padding:0 16px;max-height:300px;overflow-y:auto">
+        {% for h in historique %}
+        <div class="hist-row">
+          <div class="hist-dot"></div>
+          <div style="color:var(--muted);min-width:68px;flex-shrink:0">{{ h.created_at|date:"d/m H:i" }}</div>
+          <div>{{ h.message }}</div>
+        </div>
+        {% empty %}
+        <div style="padding:16px 0;color:var(--muted)">Aucun historique</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function buildDonut(canvasId, pct, total, color){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas) return null;
+  return new Chart(canvas, {
+    type: 'doughnut',
+    data: { datasets: [{ data: [pct, Math.max(0,total-pct)], backgroundColor: [color, '#f2f1ef'], borderWidth: 0 }] },
+    options: { cutout: '72%', responsive: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, animation: { duration: 900 } }
+  });
+}
+let donutTech = buildDonut('donut-tech', {{ prog_tech }}, {{ total_tech|default:100 }}, '#C1121F');
+let donutMorc = buildDonut('donut-morc', {{ prog_morc }}, {{ total_morc|default:100 }}, '#0B1F3A');
+
+function switchTab(btn, id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-'+id).classList.add('active');
+}
+
+const clientName = "{{ dossier.client.get_full_name|default:dossier.client.username }}";
+const totalTech = {{ total_tech|default:100 }};
+const totalMorc = {{ total_morc|default:100 }};
+
+async function toggleEtape(dossierId, etapeId, type){
+  const btnId = 'btn-'+type+'-'+etapeId;
+  const btn = document.getElementById(btnId);
+  if(!btn || btn.disabled) return;
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/admin-panel/dossiers/${dossierId}/etape/${etapeId}/toggle/`, {
+      method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    });
+    const data = await res.json();
+    if(data.status === 'error'){ alert(data.message); btn.disabled=false; return; }
+    if(data.status === 'ok'){
+      if(data.is_done){
+        btn.classList.add('done'); btn.textContent='✓';
+        btn.nextElementSibling.firstElementChild.style.fontWeight='500';
+        btn.nextElementSibling.firstElementChild.style.color='var(--navy)';
+      } else {
+        btn.classList.remove('done'); btn.textContent='';
+        btn.nextElementSibling.firstElementChild.style.fontWeight='400';
+        btn.nextElementSibling.firstElementChild.style.color='var(--text)';
+      }
+      if(type === 'tech'){
+        document.getElementById('tech-pct-label').textContent = data.progression+'%';
+        document.getElementById('prog-tech-bar').style.width = data.pct_bar+'%';
+        if(donutTech){ donutTech.data.datasets[0].data=[data.progression, Math.max(0,totalTech-data.progression)]; donutTech.update(); }
+        const msgTech = document.getElementById('msg-tech');
+        if(data.current_etape_name){ msgTech.style.display='block'; msgTech.innerHTML=`${clientName}, votre dossier est actuellement à l'étape <strong style="color:var(--red)">${data.current_etape_name}</strong>${data.current_etape_desc?' — '+data.current_etape_desc:''}`; }
+        else { msgTech.style.display='none'; }
+        if(data.morc_unlocked){ document.querySelectorAll('[id^="btn-morc-"]').forEach(b=>{b.disabled=false;}); const banner=document.querySelector('.locked-banner'); if(banner)banner.style.display='none'; }
+      } else {
+        document.getElementById('morc-pct-label').textContent = data.progression+'%';
+        document.getElementById('prog-morc-bar').style.width = data.pct_bar+'%';
+        if(donutMorc){ donutMorc.data.datasets[0].data=[data.progression, Math.max(0,totalMorc-data.progression)]; donutMorc.update(); }
+        const msgMorc = document.getElementById('msg-morc');
+        if(data.current_etape_name){ msgMorc.style.display='block'; msgMorc.innerHTML=`${clientName}, votre dossier est actuellement à l'étape <strong style="color:var(--red)">${data.current_etape_name}</strong>${data.current_etape_desc?' — '+data.current_etape_desc:''}`; }
+        else { msgMorc.style.display='none'; }
+      }
+    }
+  } catch(e){ console.error(e); }
+  btn.disabled = false;
+}
+</script>
+{% endblock %}

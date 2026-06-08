@@ -1,0 +1,27 @@
+<button class="chat-fab" id="chatFab" aria-label="Ouvrir le chat">
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+  </svg>
+</button>
+
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-header">
+    <div class="chat-avatar">M</div>
+    <div class="chat-header-info">
+      <div class="name">Martin</div>
+      <div class="status"><div class="chat-status-dot"></div>Votre conseiller Eden Group</div>
+    </div>
+    <button class="chat-close" id="chatClose">✕</button>
+  </div>
+  <div class="chat-messages" id="chatMessages"></div>
+  <div class="chat-suggestions">
+    <button class="chat-suggestion">Voir les terrains</button>
+    <button class="chat-suggestion">Suivre mon dossier</button>
+    <button class="chat-suggestion">Réserver une visite</button>
+    <button class="chat-suggestion">Documents requis</button>
+  </div>
+  <div class="chat-input-row">
+    <input type="text" class="chat-input" id="chatInput" placeholder="Posez votre question...">
+    <button class="chat-send" id="chatSend">↑</button>
+  </div>
+</div>

@@ -1,0 +1,86 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}Dossiers +45 jours — Admin{% endblock %}
+{% block breadcrumb %}Dossiers +45 jours{% endblock %}
+
+{% block topbar_actions %}
+<a href="?export=csv" class="topbar-btn topbar-btn-primary">⬇ Télécharger CSV</a>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Dossiers de plus de 45 jours</h1>
+    <p class="page-sub">{{ count }} dossier{{ count|pluralize }} en cours depuis 45 jours ou plus — téléchargeable en CSV</p>
+  </div>
+</div>
+
+{% if count > 0 %}
+<div class="notif-banner" style="margin-bottom:24px">
+  <div class="notif-banner-icon">⚠️</div>
+  <div class="notif-banner-text">
+    Ces dossiers sont en cours depuis plus de <strong>45 jours</strong> sans être complétés. Un suivi rapproché est recommandé.
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Référence</th>
+          <th>Intitulé</th>
+          <th>Client</th>
+          <th>Téléphone</th>
+          <th>Superficie</th>
+          <th>Date paiement</th>
+          <th>Existence</th>
+          <th>Tech</th>
+          <th>Morc.</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in dossiers %}
+        <tr>
+          <td><strong style="font-size:12px">{{ d.reference }}</strong></td>
+          <td>{{ d.title }}</td>
+          <td>
+            <div style="font-weight:500">{{ d.client.get_full_name|default:d.client.username }}</div>
+            <div style="font-size:11px;color:var(--muted)">{{ d.client.email }}</div>
+          </td>
+          <td style="font-size:13px">{{ d.client.phone|default:"—" }}</td>
+          <td>{% if d.superficie %}{{ d.superficie }} m²{% else %}—{% endif %}</td>
+          <td>{% if d.date_paiement %}{{ d.date_paiement|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+          <td>
+            <span class="badge badge-orange">{{ d.get_jours_existence }} jours</span>
+          </td>
+          <td>
+            <div style="font-weight:600;color:var(--navy)">{{ d.get_progression_technique }}%</div>
+            <div class="progress-bar-wrap" style="width:70px;height:4px;margin-top:4px">
+              <div class="progress-bar" style="width:{{ d.get_progression_technique }}%"></div>
+            </div>
+          </td>
+          <td>
+            <div style="font-weight:600;color:var(--navy)">{{ d.get_progression_morcellement }}%</div>
+            <div class="progress-bar-wrap" style="width:70px;height:4px;margin-top:4px">
+              <div class="progress-bar" style="width:{{ d.get_progression_morcellement }}%"></div>
+            </div>
+          </td>
+          <td>
+            <a href="{% url 'admin_dossier_detail' d.pk %}" class="btn btn-secondary btn-xs">Gérer →</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="10" style="text-align:center;padding:64px;color:var(--muted)">
+            <div style="font-size:48px;margin-bottom:16px">✅</div>
+            Aucun dossier en cours depuis plus de 45 jours. Excellent suivi !
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

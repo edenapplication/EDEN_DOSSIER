@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% block title %}Mon Espace — EDEN GROUP{% endblock %}
+
+{% block extra_css %}
+<style>
+.dashboard-page{padding-top:80px;min-height:100vh;background:var(--cream)}
+.dash-hero{background:linear-gradient(135deg,#0B1F3A 0%,#4B3A7A 60%,#C1121F 100%);padding:56px 0 96px;position:relative;overflow:hidden}
+.dash-hero::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:48px 48px}
+.dash-hero::after{content:'';position:absolute;bottom:0;left:0;right:0;height:64px;background:linear-gradient(to top,var(--cream),transparent)}
+
+/* PROMO CAROUSEL */
+.dash-promo-section{background:linear-gradient(135deg,#0B1F3A 0%,#1e2d4a 50%,#2d1020 100%);padding:48px 0;overflow:hidden;position:relative}
+.dash-promo-section::after{content:'';position:absolute;bottom:0;left:0;right:0;height:48px;background:linear-gradient(to top,var(--cream),transparent)}
+.dash-promo-track-wrap{overflow:hidden}
+.dash-promo-track{display:flex;transition:transform .7s cubic-bezier(.25,.46,.45,.94)}
+.dash-promo-slide{min-width:100%;position:relative;height:200px;flex-shrink:0;overflow:hidden}
+.dash-promo-slide-bg{position:absolute;inset:0;background-size:cover;background-position:center;transition:transform 8s ease}
+.dash-promo-slide:hover .dash-promo-slide-bg{transform:scale(1.04)}
+.dash-promo-fade{position:absolute;inset:0;background:linear-gradient(to right,rgba(11,31,58,.92) 0%,rgba(11,31,58,.7) 50%,transparent 100%)}
+.dash-promo-info{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:0 40px;z-index:2}
+.dash-promo-badge{display:inline-block;padding:4px 12px;border-radius:3px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#fff;margin-bottom:10px;align-self:flex-start}
+.dash-promo-title{font-family:'Cormorant Garamond',serif;font-size:clamp(22px,3vw,32px);font-weight:300;color:#fff;line-height:1.2;margin-bottom:6px}
+.dash-promo-sub{font-size:14px;color:rgba(255,255,255,.6);margin-bottom:12px}
+.dash-promo-price{font-family:'Cormorant Garamond',serif;font-size:22px;color:rgba(255,255,255,.9)}
+.dash-promo-dots{display:flex;justify-content:center;gap:8px;padding:16px 0 0}
+.dash-promo-dot{width:24px;height:3px;background:rgba(255,255,255,.25);border-radius:2px;border:none;cursor:pointer;transition:all .3s;padding:0}
+.dash-promo-dot.active{background:#fff;width:36px}
+
+.dash-body{margin-top:-40px;position:relative;z-index:2;padding:0 0 80px}
+.dossier-list-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px;transition:all .3s}
+.dossier-list-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+.dossier-list-inner{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;gap:16px;flex-wrap:wrap}
+.dossier-list-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--navy)}
+.dossier-list-ref{font-size:12px;color:var(--muted);margin-top:3px}
+.dossier-list-right{display:flex;align-items:center;gap:16px;flex-shrink:0}
+</style>
+{% endblock %}
+
+{% block content %}
+{% with promotions=promotions_list %}
+<div class="dashboard-page">
+  <div class="dash-hero">
+    <div class="container" style="position:relative;z-index:1">
+      <span class="eyebrow" style="color:rgba(255,255,255,.5)">Espace client</span>
+      <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(30px,4vw,50px);font-weight:300;color:#fff;margin-top:8px;margin-bottom:8px">
+        Bonjour, {{ user.first_name|default:user.username }} 👋
+      </h1>
+      <p style="color:rgba(255,255,255,.5);font-size:14px">Suivez l'avancement de vos dossiers fonciers.</p>
+    </div>
+  </div>
+
+  {% if promotions %}
+  <div class="dash-promo-section">
+    <div class="container">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+        <div>
+          <span style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.4)">Offres exclusives</span>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:#fff;margin-top:4px">Promotions du <em>moment</em></div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button id="promoPrev" style="width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:transparent;color:#fff;cursor:pointer;font-size:14px;transition:all .3s" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='transparent'">←</button>
+          <button id="promoNext" style="width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:transparent;color:#fff;cursor:pointer;font-size:14px;transition:all .3s" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='transparent'">→</button>
+        </div>
+      </div>
+    </div>
+    <div class="dash-promo-track-wrap">
+      <div class="dash-promo-track" id="dashPromoTrack">
+        {% for promo in promotions %}
+        <div class="dash-promo-slide">
+          <div class="dash-promo-slide-bg" style="background-image:{% if promo.image %}url('{{ promo.image.url }}'){% else %}linear-gradient(135deg,#0B1F3A,#4B3A7A,#C1121F){% endif %}"></div>
+          <div class="dash-promo-fade"></div>
+          <div class="dash-promo-info">
+            {% if promo.badge %}<span class="dash-promo-badge" style="background:{{ promo.badge_color }}">{{ promo.badge }}</span>{% endif %}
+            <div class="dash-promo-title">{{ promo.title }}</div>
+            {% if promo.subtitle %}<div class="dash-promo-sub">{{ promo.subtitle }}</div>{% endif %}
+            {% if promo.price %}<div class="dash-promo-price">{{ promo.get_price_display }} FCFA</div>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="dash-promo-dots" id="dashPromoDots"></div>
+  </div>
+  {% endif %}
+
+  <div class="dash-body">
+    <div class="container">
+      {% if dossiers %}
+      <h2 style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:400;color:var(--navy);margin-bottom:20px">Mes dossiers</h2>
+      {% for dossier in dossiers %}
+      <div class="dossier-list-card">
+        <div class="dossier-list-inner">
+          <div>
+            <div class="dossier-list-title">{{ dossier.title }}</div>
+            <div class="dossier-list-ref">{{ dossier.reference }}</div>
+          </div>
+          <div class="dossier-list-right">
+            <span class="badge {% if dossier.is_complete %}badge-green{% else %}badge-yellow{% endif %}">
+              {{ dossier.get_statut_display }}
+            </span>
+            <a href="{% url 'dossier_detail' dossier.pk %}" class="btn btn-outline btn-sm">Voir le détail →</a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div style="text-align:center;padding:80px 0">
+        <div style="font-size:52px;margin-bottom:16px">📂</div>
+        <h3 style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:300;color:var(--navy);margin-bottom:12px">Aucun dossier pour l'instant</h3>
+        <p style="color:var(--muted);margin-bottom:28px">Votre conseiller Eden Group créera votre dossier après votre première visite.</p>
+        <a href="{% url 'reservation_create' %}" class="btn btn-primary">Réserver une visite →</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endwith %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const promoTrack = document.getElementById('dashPromoTrack');
+const promoDots = document.getElementById('dashPromoDots');
+if(promoTrack){
+  const slides = promoTrack.querySelectorAll('.dash-promo-slide');
+  let cur = 0;
+  let autoTimer;
+
+  slides.forEach((_,i)=>{
+    const d = document.createElement('button');
+    d.className = 'dash-promo-dot' + (i===0?' active':'');
+    d.addEventListener('click',()=>gotoPr(i));
+    if(promoDots) promoDots.appendChild(d);
+  });
+
+  function gotoPr(n){
+    cur = (n + slides.length) % slides.length;
+    promoTrack.style.transform = `translateX(${-cur * 100}%)`;
+    document.querySelectorAll('.dash-promo-dot').forEach((d,i)=>d.classList.toggle('active',i===cur));
+  }
+
+  function startAuto(){ autoTimer = setInterval(()=>gotoPr(cur+1), 5000); }
+  function stopAuto(){ clearInterval(autoTimer); }
+
+  document.getElementById('promoPrev').addEventListener('click',()=>{ stopAuto(); gotoPr(cur-1); startAuto(); });
+  document.getElementById('promoNext').addEventListener('click',()=>{ stopAuto(); gotoPr(cur+1); startAuto(); });
+  promoTrack.addEventListener('touchstart',e=>{ stopAuto(); window._pts=e.touches[0].clientX; },{passive:true});
+  promoTrack.addEventListener('touchend',e=>{ const diff=window._pts-e.changedTouches[0].clientX; if(Math.abs(diff)>40) gotoPr(cur+(diff>0?1:-1)); startAuto(); });
+  startAuto();
+}
+</script>
+{% endblock %}

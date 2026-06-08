@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Nos Terrains — EDEN GROUP{% endblock %}
+{% block extra_css %}
+<style>
+.props-page{padding-top:100px}
+.props-hero{background:linear-gradient(135deg,#0B1F3A 0%,#4B3A7A 60%,#C1121F 100%);padding:100px 0 80px;position:relative}
+.props-hero::after{content:'';position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(to top,#fff,transparent)}
+.props-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:64px}
+@media(max-width:1100px){.props-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:800px){.props-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.props-grid{grid-template-columns:1fr}}
+.pcard{background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:all .4s}
+.pcard:hover{box-shadow:var(--shadow-lg);transform:translateY(-5px)}
+.pcard-img{height:220px;overflow:hidden;position:relative;background:linear-gradient(135deg,#0B1F3A,#4B3A7A,#C1121F)}
+.pcard-img img{width:100%;height:100%;object-fit:cover;transition:transform .6s}
+.pcard:hover .pcard-img img{transform:scale(1.06)}
+.pcard-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:.2;color:#fff}
+.pcard-featured{position:absolute;top:12px;left:12px;background:rgba(201,168,76,.95);color:#fff;padding:5px 12px;border-radius:4px;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase}
+.pcard-body{padding:20px}
+.pcard-location{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--red);font-weight:600;margin-bottom:8px}
+.pcard-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--navy);margin-bottom:8px;line-height:1.2}
+.pcard-meta{display:flex;gap:12px;font-size:13px;color:var(--muted);margin-bottom:12px;flex-wrap:wrap}
+.pcard-price{font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--navy)}
+.pcard-footer{padding:16px 20px;border-top:1px solid var(--border);background:var(--cream)}
+</style>
+{% endblock %}
+{% block content %}
+<div class="props-page">
+  <div class="props-hero">
+    <div class="container" style="position:relative;z-index:1">
+      <div class="breadcrumb">
+        <a href="{% url 'home' %}" style="color:rgba(255,255,255,.5)">Accueil</a>
+        <span style="color:rgba(255,255,255,.3)">›</span>
+        <span style="color:rgba(255,255,255,.8)">Nos terrains</span>
+      </div>
+      <span class="eyebrow" style="color:rgba(255,255,255,.5)">Notre sélection</span>
+      <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(42px,5vw,68px);font-weight:300;color:#fff;margin-top:12px;margin-bottom:12px">Terrains <em style="color:rgba(255,255,255,.7)">d'exception</em></h1>
+      <p style="font-size:16px;color:rgba(255,255,255,.5);max-width:480px">Chaque parcelle rigoureusement sélectionnée pour sa sécurité juridique et son potentiel de valorisation.</p>
+    </div>
+  </div>
+
+  <div class="container" style="padding-bottom:96px">
+    {% if properties %}
+    <div class="props-grid">
+      {% for prop in properties %}
+      <a href="{% url 'property_detail' prop.pk %}" class="pcard reveal reveal-delay-{{ forloop.counter0|add:"1" }}">
+        <div class="pcard-img">
+          {% if prop.main_image %}<img src="{{ prop.main_image.url }}" alt="{{ prop.title }}" loading="lazy">
+          {% else %}<div class="pcard-placeholder">🌍</div>{% endif %}
+          {% if prop.is_featured %}<div class="pcard-featured">Coup de cœur</div>{% endif %}
+        </div>
+        <div class="pcard-body">
+          <div class="pcard-location">{{ prop.location }}</div>
+          <div class="pcard-title">{{ prop.title }}</div>
+          <div class="pcard-meta">
+            <span>{{ prop.area }} m²</span>
+          </div>
+          <div class="pcard-price">{{ prop.get_price_display }}</div>
+        </div>
+        <div class="pcard-footer">
+          <span style="font-size:13px;color:var(--red);font-weight:500">Voir ce terrain →</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:96px 0">
+      <div style="font-size:64px;margin-bottom:24px">🏡</div>
+      <h3 class="heading-sm" style="color:var(--navy)">Aucun terrain disponible</h3>
+      <p style="color:var(--muted)">De nouveaux terrains seront bientôt disponibles.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

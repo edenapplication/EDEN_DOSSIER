@@ -1,0 +1,50 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}{{ action }} client — Admin{% endblock %}
+{% block breadcrumb %}<a href="{% url 'admin_clients' %}">Clients</a> › {{ action }}{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">{{ action }} un client</h1></div></div>
+<div style="max-width:640px">
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-section">
+      <div class="form-section-title">Compte & Accès</div>
+      {% if not client %}
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Identifiant (login) *</label>
+          <input type="text" name="username" class="form-control" required placeholder="jean.mballa">
+          <span class="form-hint">Le client utilisera ceci pour se connecter</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mot de passe *</label>
+          <input type="text" name="password" class="form-control" required placeholder="Mot de passe provisoire">
+          <span class="form-hint">Transmis au client</span>
+        </div>
+      </div>
+      {% else %}
+      <div class="form-group">
+        <label class="form-label">Nouveau mot de passe (laisser vide pour ne pas changer)</label>
+        <input type="text" name="password" class="form-control" placeholder="Laisser vide pour conserver">
+      </div>
+      {% endif %}
+      <label class="form-check"><input type="checkbox" name="is_active" {% if client.is_active or not client %}checked{% endif %}> Compte actif</label>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Informations personnelles</div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Prénom</label><input type="text" name="first_name" class="form-control" value="{{ client.first_name|default:'' }}"></div>
+        <div class="form-group"><label class="form-label">Nom</label><input type="text" name="last_name" class="form-control" value="{{ client.last_name|default:'' }}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Email</label><input type="email" name="email" class="form-control" value="{{ client.email|default:'' }}"></div>
+        <div class="form-group"><label class="form-label">Téléphone</label><input type="text" name="phone" class="form-control" value="{{ client.phone|default:'' }}" placeholder="+237 6XX XXX XXX"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Ville</label><input type="text" name="city" class="form-control" value="{{ client.city|default:'' }}"></div>
+    </div>
+    <div style="display:flex;gap:12px">
+      <button type="submit" class="btn btn-primary">{{ action }} →</button>
+      <a href="{% url 'admin_clients' %}" class="btn btn-outline">Annuler</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

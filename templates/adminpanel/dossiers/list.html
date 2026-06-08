@@ -1,0 +1,46 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}Dossiers — Admin{% endblock %}
+{% block breadcrumb %}Dossiers fonciers{% endblock %}
+{% block topbar_actions %}<a href="{% url 'admin_dossier_create' %}" class="topbar-btn topbar-btn-primary">+ Nouveau dossier</a>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Dossiers fonciers</h1><p class="page-sub">{{ dossiers_data|length }} dossier{{ dossiers_data|length|pluralize }}</p></div>
+</div>
+<div class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Référence</th>
+          <th>Intitulé</th>
+          <th>Client</th>
+          <th>Superficie</th>
+          <th>Date paiement</th>
+          <th>Avancement</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in dossiers_data %}
+        <tr>
+          <td><strong style="font-size:12px;color:var(--navy)">{{ item.dossier.reference }}</strong></td>
+          <td>{{ item.dossier.title }}</td>
+          <td>{{ item.dossier.client.get_full_name|default:item.dossier.client.username }}</td>
+          <td>{% if item.dossier.superficie %}{{ item.dossier.superficie }} m²{% else %}<span style="color:var(--muted)">—</span>{% endif %}</td>
+          <td>{% if item.dossier.date_paiement %}{{ item.dossier.date_paiement|date:"d/m/Y" }}{% else %}<span style="color:var(--muted)">—</span>{% endif %}</td>
+          <td>
+            <span class="badge {% if item.is_complete %}badge-green{% else %}badge-yellow{% endif %}">
+              {% if item.is_complete %}Complet{% else %}En cours{% endif %}
+            </span>
+          </td>
+          <td><a href="{% url 'admin_dossier_detail' item.dossier.pk %}" class="btn btn-secondary btn-xs">Gérer →</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center;padding:48px;color:var(--muted)">Aucun dossier créé</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

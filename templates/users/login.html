@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Connexion — EDEN GROUP{% endblock %}
+
+{% block extra_css %}
+<style>
+.login-page{min-height:100vh;display:flex;align-items:center;background:linear-gradient(135deg,#f8f7f5 0%,#fff 50%,#f8f7f5 100%);padding:100px 0 60px}
+.login-card{max-width:460px;width:100%;margin:0 auto;background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:56px 48px;box-shadow:var(--shadow-lg)}
+@media(max-width:520px){.login-card{padding:40px 28px;border-radius:0;border-left:none;border-right:none}}
+.login-logo-img{
+    height:100px;
+    width:auto;
+    display:inline-block;
+    transition:transform .3s ease;
+}
+
+.login-logo-img:hover{
+    transform:scale(1.03);
+}
+.login-title{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:400;color:var(--navy);margin-bottom:8px}
+.login-sub{font-size:14px;color:var(--muted);margin-bottom:40px}
+.login-divider{height:1px;background:var(--border);margin:32px 0;position:relative}
+.login-divider::after{content:'ou';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:0 16px;font-size:13px;color:var(--muted)}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-page">
+  <div class="container">
+    <div class="login-card">
+      {% load static %}
+
+<div class="login-logo">
+    <img src="{% static 'images/eden.png' %}" alt="EDEN GROUP" class="login-logo-img">
+</div>
+      <h1 class="login-title">Bienvenue</h1>
+      <p class="login-sub">Connectez-vous pour accéder à votre espace client et suivre vos dossiers.</p>
+
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label">Votre Nom</label>
+          <input type="text" name="username" class="eden-input" placeholder="Votre identifiant" required autofocus>
+          {% if form.username.errors %}<span class="form-error">{{ form.username.errors.0 }}</span>{% endif %}
+        </div>
+        <div class="form-group">
+          <label class="form-label">Numero de Téléphone</label>
+          <input type="password" name="password" class="eden-input" placeholder="••••••••" required>
+          {% if form.password.errors %}<span class="form-error">{{ form.password.errors.0 }}</span>{% endif %}
+        </div>
+        {% if form.non_field_errors %}
+        <div style="background:rgba(193,18,31,.06);border:1px solid rgba(193,18,31,.2);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:14px;color:var(--red)">
+          {{ form.non_field_errors.0 }}
+        </div>
+        {% endif %}
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px">
+          Se connecter →
+        </button>
+      </form>
+
+      <div style="margin-top:32px;text-align:center;font-size:14px;color:var(--muted)">
+        Pas encore client ? <a href="{% url 'reservation_create' %}" style="color:var(--red);font-weight:500">Réservez une visite →</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

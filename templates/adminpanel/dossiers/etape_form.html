@@ -1,0 +1,54 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}Ajouter une étape — Admin{% endblock %}
+{% block breadcrumb %}<a href="{% url 'admin_dossier_detail' workflow.dossier.pk %}">{{ workflow.dossier.reference }}</a> › Ajouter étape{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Ajouter une étape</h1>
+    <p class="page-sub">Workflow : {{ workflow.get_workflow_type_display }} · Dossier : {{ workflow.dossier.reference }} · Total actuel : {{ workflow.get_total_percentage }}/100%</p>
+  </div>
+</div>
+
+<div style="max-width:520px">
+  {% if workflow.get_total_percentage >= 100 %}
+  <div class="alert alert-error" style="margin-bottom:20px">⚠ Ce workflow est déjà à 100%. Supprimez une étape avant d'en ajouter une nouvelle.</div>
+  {% else %}
+  <div class="form-section">
+    <div class="form-section-title">Nouvelle étape — Reste disponible : {{ 100|add:"-0"|add:"" }}{% widthratio 100 1 1 %} %</div>
+    <div style="background:rgba(11,31,58,.04);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--navy)">
+      💡 Reste disponible : <strong>{{ 100|add:"-"|add:"0" }}
+      {% with used=workflow.get_total_percentage %}{{ 100|add:"-0" }}{% endwith %}
+      </strong>
+      Utilisé : <strong>{{ workflow.get_total_percentage }}%</strong> / Disponible : <strong>{% with used=workflow.get_total_percentage %}{{ 100 }}{% endwith %}</strong>
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label">Nom de l'étape *</label>
+        <input type="text" name="name" class="form-control" placeholder="Ex: Étude cadastrale, Signature notaire..." required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Pourcentage * (max restant : {% widthratio 100|add:0 1 1 %}%)</label>
+          <input type="number" name="percentage" class="form-control" min="1" max="{{ 100 }}" placeholder="Ex: 20" required>
+          <span class="form-hint">Total actuel : {{ workflow.get_total_percentage }}% | Disponible : environ {{ 100|add:"-0" }}%</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ordre d'affichage</label>
+          <input type="number" name="order" class="form-control" value="{{ workflow.etapes.count }}" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description (optionnel)</label>
+        <textarea name="description" class="form-control" rows="2" placeholder="Détails de cette étape..."></textarea>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:8px">
+        <button type="submit" class="btn btn-primary">Ajouter l'étape →</button>
+        <a href="{% url 'admin_dossier_detail' workflow.dossier.pk %}" class="btn btn-outline">Annuler</a>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

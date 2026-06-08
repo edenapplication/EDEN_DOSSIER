@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}Réserver une visite — EDEN GROUP{% endblock %}
+{% block extra_css %}
+<style>
+.rsv-page{min-height:100vh;padding:140px 0 80px;background:var(--cream)}
+.rsv-card{max-width:640px;margin:0 auto;background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-lg)}
+.rsv-card-header{background:linear-gradient(135deg,#0B1F3A,#4B3A7A,#C1121F);padding:40px 40px 36px}
+.rsv-card-body{padding:40px}
+.rsv-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:560px){.rsv-grid{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="rsv-page">
+  <div class="container">
+    <div class="rsv-card">
+      <div class="rsv-card-header">
+        <span class="eyebrow" style="color:rgba(255,255,255,.5)">Eden Group</span>
+        <h1 style="font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:300;color:#fff;margin-top:8px;margin-bottom:8px">Réserver une visite</h1>
+        <p style="color:rgba(255,255,255,.55);font-size:15px">
+          {% if property %}Terrain : <strong style="color:#fff">{{ property.title }}</strong>
+          {% elif promotion %}Promotion : <strong style="color:#fff">{{ promotion.title }}</strong>
+          {% else %}Notre équipe vous contactera pour organiser votre visite.{% endif %}
+        </p>
+      </div>
+      <div class="rsv-card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="rsv-grid">
+            <div class="form-group">
+              <label class="form-label">Nom complet *</label>
+              <input type="text" name="name" class="eden-input" placeholder="Jean-Pierre Mballa" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Téléphone *</label>
+              <input type="tel" name="phone" class="eden-input" placeholder="+237 6XX XXX XXX" required>
+            </div>
+          </div>
+          <div class="rsv-grid">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="eden-input" placeholder="email@exemple.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date souhaitée</label>
+              <input type="date" name="visit_date" class="eden-input">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Message</label>
+            <textarea name="message" class="eden-input" rows="4" placeholder="Précisez vos besoins, budget ou questions..."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;padding:18px">
+            Envoyer  ma demande →
+          </button>
+          <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--muted)">Visite gratuite · Notre équipe vous contacte sous 24h</p>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

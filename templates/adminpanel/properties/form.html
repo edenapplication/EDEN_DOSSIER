@@ -1,0 +1,61 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}{{ action }} un terrain — Admin{% endblock %}
+{% block breadcrumb %}<a href="{% url 'admin_properties' %}">Terrains</a> › {{ action }}{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">{{ action }} un terrain</h1></div></div>
+<div style="max-width:800px">
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-section">
+      <div class="form-section-title">Informations</div>
+      <div class="form-group">
+        <label class="form-label">Titre *</label>
+        <input type="text" name="title" class="form-control" value="{{ property.title|default:'' }}" required placeholder="Eden Nord Premium">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Localisation *</label>
+          <input type="text" name="location" class="form-control" value="{{ property.location|default:'' }}" required placeholder="Yaoundé · Mfou">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Superficie (m²) *</label>
+          <input type="number" name="area" class="form-control" value="{{ property.area|default:'' }}" required step="0.01" placeholder="600">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Prix (FCFA) *</label>
+        <input type="number" name="price" class="form-control" value="{{ property.price|default:'' }}" required placeholder="15000000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description *</label>
+        <textarea name="description" class="form-control" rows="4" required placeholder="Description complète du terrain...">{{ property.description|default:'' }}</textarea>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Images</div>
+      {% if property.main_image %}
+      <img src="{{ property.main_image.url }}" style="width:200px;height:130px;object-fit:cover;border-radius:8px;margin-bottom:16px">
+      {% endif %}
+      <div class="form-group">
+        <label class="form-label">Image principale</label>
+        <input type="file" name="main_image" class="form-control" accept="image/*">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Galerie (plusieurs images)</label>
+        <input type="file" name="gallery_images" class="form-control" accept="image/*" multiple>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Options</div>
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <label class="form-check"><input type="checkbox" name="is_active" {% if property.is_active or not property %}checked{% endif %}> Terrain actif (visible)</label>
+        <label class="form-check"><input type="checkbox" name="is_featured" {% if property.is_featured %}checked{% endif %}> Coup de cœur</label>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px">
+      <button type="submit" class="btn btn-primary">{{ action }} →</button>
+      <a href="{% url 'admin_properties' %}" class="btn btn-outline">Annuler</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

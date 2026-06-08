@@ -1,0 +1,41 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}{{ action }} réponse — Admin{% endblock %}
+{% block breadcrumb %}<a href="{% url 'admin_chatbot' %}">Chatbot</a> › {{ action }}{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">{{ action }} une réponse</h1></div></div>
+<div style="max-width:640px">
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-section">
+      <div class="form-section-title">Question & Mots-clés</div>
+      <div class="form-group">
+        <label class="form-label">Question type *</label>
+        <input type="text" name="question_example" class="form-control" value="{{ kb.question_example|default:'' }}" required placeholder="Quels documents faut-il fournir ?">
+        <span class="form-hint">Exemple de question à laquelle cette réponse correspond</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mots-clés (séparés par des virgules) *</label>
+        <input type="text" name="keywords" class="form-control" value="{{ kb.keywords|default:'' }}" required placeholder="document, pièce, identité, acte, naissance">
+        <span class="form-hint">Le chatbot détecte ces mots dans la question du client</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Réponse *</label>
+        <textarea name="answer" class="form-control" rows="5" required placeholder="Documents requis :&#10;- Pièce d'identité nationale&#10;- Acte de naissance&#10;- Justificatif de domicile">{{ kb.answer|default:'' }}</textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Ordre d'affichage</label>
+          <input type="number" name="order" class="form-control" value="{{ kb.order|default:0 }}">
+        </div>
+        <div class="form-group" style="justify-content:flex-end;padding-top:24px">
+          <label class="form-check"><input type="checkbox" name="is_active" {% if kb.is_active or not kb %}checked{% endif %}> Réponse active</label>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px">
+      <button type="submit" class="btn btn-primary">{{ action }} →</button>
+      <a href="{% url 'admin_chatbot' %}" class="btn btn-outline">Annuler</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

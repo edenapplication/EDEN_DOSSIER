@@ -1,0 +1,75 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}{{ action }} une promotion — Admin{% endblock %}
+{% block breadcrumb %}<a href="{% url 'admin_promotions' %}">Promotions</a> › {{ action }}{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">{{ action }} une promotion</h1></div></div>
+<div style="max-width:800px">
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-section">
+      <div class="form-section-title">Informations</div>
+      <div class="form-group">
+        <label class="form-label">Titre *</label>
+        <input type="text" name="title" class="form-control" value="{{ promotion.title|default:'' }}" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Sous-titre</label>
+        <input type="text" name="subtitle" class="form-control" value="{{ promotion.subtitle|default:'' }}">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Badge (ex: -15%)</label>
+          <input type="text" name="badge" class="form-control" value="{{ promotion.badge|default:'' }}" placeholder="-15%, VIP, ECO...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Couleur badge</label>
+          <input type="color" name="badge_color" class="form-control" value="{{ promotion.badge_color|default:'#C1121F' }}" style="height:44px">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Prix (FCFA)</label>
+          <input type="number" name="price" class="form-control" value="{{ promotion.price|default:'' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Localisation</label>
+          <input type="text" name="location" class="form-control" value="{{ promotion.location|default:'' }}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description *</label>
+        <textarea name="description" class="form-control" rows="4" required>{{ promotion.description|default:'' }}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Avantages (un par ligne)</label>
+        <textarea name="advantages" class="form-control" rows="4" placeholder="Paiement échelonné disponible&#10;Titre foncier inclus&#10;...">{{ promotion.advantages|default:'' }}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Conditions</label>
+        <textarea name="conditions" class="form-control" rows="2">{{ promotion.conditions|default:'' }}</textarea>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Image & Paramètres</div>
+      {% if promotion.image %}<img src="{{ promotion.image.url }}" style="width:200px;height:130px;object-fit:cover;border-radius:8px;margin-bottom:16px">{% endif %}
+      <div class="form-group">
+        <label class="form-label">Image principale</label>
+        <input type="file" name="image" class="form-control" accept="image/*">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Ordre d'affichage</label>
+          <input type="number" name="order" class="form-control" value="{{ promotion.order|default:0 }}">
+        </div>
+        <div class="form-group" style="justify-content:flex-end;padding-top:24px">
+          <label class="form-check"><input type="checkbox" name="is_active" {% if promotion.is_active or not promotion %}checked{% endif %}> Active (visible)</label>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px">
+      <button type="submit" class="btn btn-primary">{{ action }} →</button>
+      <a href="{% url 'admin_promotions' %}" class="btn btn-outline">Annuler</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}{{ promo.title }} — EDEN GROUP{% endblock %}
+{% block extra_css %}
+<style>
+.promo-detail-page{padding-top:100px}
+.promo-hero{background:linear-gradient(135deg,#0B1F3A 0%,#4B3A7A 60%,#C1121F 100%);padding:80px 0 64px}
+.promo-hero::after{content:'';position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(to top,#fff,transparent)}
+.promo-layout{display:grid;grid-template-columns:1fr 400px;gap:48px;align-items:start;margin-top:48px}
+@media(max-width:900px){.promo-layout{grid-template-columns:1fr}}
+.promo-main-img{width:100%;max-height:480px;object-fit:cover;border-radius:var(--radius);box-shadow:var(--shadow-lg)}
+.promo-gallery{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.promo-gallery img{width:100%;height:90px;object-fit:cover;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:border .2s}
+.promo-gallery img:hover{border-color:var(--red)}
+.promo-sidebar{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:36px;box-shadow:var(--shadow);position:sticky;top:100px}
+@media(max-width:900px){.promo-sidebar{position:static}}
+.advantages-list{list-style:none;display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.advantages-list li{display:flex;align-items:flex-start;gap:12px;font-size:15px;color:var(--text)}
+.advantages-list li::before{content:'✓';width:20px;height:20px;background:rgba(193,18,31,.1);color:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:2px}
+</style>
+{% endblock %}
+{% block content %}
+<div class="promo-detail-page" style="position:relative">
+  <div class="promo-hero" style="position:relative;overflow:hidden">
+    <div class="container" style="position:relative;z-index:1">
+      <div class="breadcrumb">
+        <a href="{% url 'home' %}" style="color:rgba(255,255,255,.5)">Accueil</a>
+        <span style="color:rgba(255,255,255,.3)">›</span>
+        <span style="color:rgba(255,255,255,.8)">{{ promo.title }}</span>
+      </div>
+      {% if promo.badge %}<span class="badge" style="background:{{ promo.badge_color }};color:#fff;margin-bottom:12px;display:inline-block">{{ promo.badge }}</span>{% endif %}
+      <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(36px,4vw,60px);font-weight:300;color:#fff;margin-bottom:8px">{{ promo.title }}</h1>
+      {% if promo.subtitle %}<p style="font-size:18px;color:rgba(255,255,255,.6);font-style:italic">{{ promo.subtitle }}</p>{% endif %}
+    </div>
+  </div>
+
+  <div class="container" style="padding-bottom:96px">
+    <div class="promo-layout">
+      <div>
+        {% if promo.image %}
+        <img src="{{ promo.image.url }}" alt="{{ promo.title }}" class="promo-main-img" id="promoMainImg">
+        {% endif %}
+        {% if images %}
+        <div class="promo-gallery">
+          {% for img in images %}
+          <img src="{{ img.image.url }}" alt="{{ promo.title }}" onclick="document.getElementById('promoMainImg').src=this.src">
+          {% endfor %}
+        </div>
+        {% endif %}
+        <div style="margin-top:40px">
+          <h2 class="heading-sm" style="color:var(--navy);margin-bottom:16px">Description complète</h2>
+          <p style="font-size:16px;line-height:1.9;color:var(--muted)">{{ promo.description }}</p>
+        </div>
+        {% if promo.conditions %}
+        <div style="margin-top:32px;background:var(--cream);border-radius:var(--radius-sm);padding:24px;border-left:3px solid var(--red)">
+          <h3 style="font-size:14px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--red);margin-bottom:12px">Conditions</h3>
+          <p style="font-size:14px;color:var(--muted);line-height:1.8">{{ promo.conditions }}</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="promo-sidebar">
+        {% if promo.price %}
+        <span class="eyebrow">Prix promotionnel</span>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:40px;font-weight:300;color:var(--navy);margin-top:8px;margin-bottom:24px">{{ promo.get_price_display }}</div>
+        {% endif %}
+        {% if promo.get_advantages_list %}
+        <div>
+          <span class="eyebrow">Avantages</span>
+          <ul class="advantages-list">
+            {% for adv in promo.get_advantages_list %}
+            <li>{{ adv }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        <div style="height:1px;background:var(--border);margin:28px 0"></div>
+        {% endif %}
+        <a href="{% url 'reservation_promotion' promo.pk %}" class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:12px">Réserver une visite →</a>
+        <p style="text-align:center;font-size:13px;color:var(--muted)">Réponse garantie sous 24h</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}Promotions — Admin{% endblock %}
+{% block breadcrumb %}Promotions{% endblock %}
+{% block topbar_actions %}<a href="{% url 'admin_promotion_create' %}" class="topbar-btn topbar-btn-primary">+ Ajouter</a>{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Promotions</h1></div></div>
+<div class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Image</th><th>Titre</th><th>Badge</th><th>Prix</th><th>Ordre</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for pr in promotions %}
+        <tr>
+          <td>{% if pr.image %}<img src="{{ pr.image.url }}" style="width:56px;height:44px;object-fit:cover;border-radius:4px">{% else %}<div style="width:56px;height:44px;background:var(--gradient);border-radius:4px;opacity:.4"></div>{% endif %}</td>
+          <td><strong>{{ pr.title }}</strong>{% if pr.subtitle %}<br><span style="font-size:12px;color:var(--muted)">{{ pr.subtitle }}</span>{% endif %}</td>
+          <td>{% if pr.badge %}<span class="badge" style="background:{{ pr.badge_color }};color:#fff">{{ pr.badge }}</span>{% else %}—{% endif %}</td>
+          <td>{% if pr.price %}{{ pr.get_price_display }}{% else %}—{% endif %}</td>
+          <td>{{ pr.order }}</td>
+          <td><span class="badge {% if pr.is_active %}badge-green{% else %}badge-gray{% endif %}">{% if pr.is_active %}Active{% else %}Inactive{% endif %}</span></td>
+          <td style="white-space:nowrap">
+            <a href="{% url 'admin_promotion_edit' pr.pk %}" class="btn btn-outline btn-xs">Modifier</a>
+            <form method="post" action="{% url 'admin_promotion_delete' pr.pk %}" style="display:inline" onsubmit="return confirm('Supprimer ?')">{% csrf_token %}<button type="submit" class="btn btn-danger btn-xs">✕</button></form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center;padding:48px;color:var(--muted)">Aucune promotion</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

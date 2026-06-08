@@ -1,0 +1,39 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}Réservations — Admin{% endblock %}
+{% block breadcrumb %}Réservations{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Réservations</h1><p class="page-sub">{{ reservations.count }} demande{{ reservations.count|pluralize }}</p></div></div>
+<div class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Client</th><th>Contact</th><th>Bien</th><th>Date souhaitée</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for r in reservations %}
+        <tr>
+          <td><strong>{{ r.name }}</strong><br><span style="font-size:12px;color:var(--muted)">{{ r.created_at|date:"d/m/Y H:i" }}</span></td>
+          <td>{{ r.phone }}<br>{% if r.email %}<span style="font-size:12px;color:var(--muted)">{{ r.email }}</span>{% endif %}</td>
+          <td>
+            {% if r.property_link %}🏡 {{ r.property_link.title }}
+            {% elif r.promotion_link %}🎁 {{ r.promotion_link.title }}
+            {% else %}—{% endif %}
+          </td>
+          <td>{% if r.visit_date %}{{ r.visit_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+          <td><span class="badge {% if r.status == 'pending' %}badge-yellow{% elif r.status == 'confirmed' %}badge-green{% elif r.status == 'done' %}badge-blue{% else %}badge-red{% endif %}">{{ r.get_status_display }}</span></td>
+          <td>
+            <form method="post" action="{% url 'admin_reservation_update' r.pk %}" style="display:flex;gap:6px;align-items:center">
+              {% csrf_token %}
+              <select name="status" class="form-control form-control-sm" style="width:auto">
+                {% for val,label in r.STATUS_CHOICES %}<option value="{{ val }}" {% if r.status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+              </select>
+              <button type="submit" class="btn btn-secondary btn-xs">OK</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align:center;padding:48px;color:var(--muted)">Aucune réservation</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

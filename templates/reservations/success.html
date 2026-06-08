@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Demande envoyée — EDEN GROUP{% endblock %}
+{% block content %}
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:100px 24px;background:var(--cream)">
+  <div style="max-width:520px;text-align:center">
+    <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#0B1F3A,#C1121F);display:flex;align-items:center;justify-content:center;margin:0 auto 32px;font-size:36px;color:#fff">✓</div>
+    <h1 style="font-family:'Cormorant Garamond',serif;font-size:44px;font-weight:300;color:var(--navy);margin-bottom:16px">Demande envoyée !</h1>
+    <p style="font-size:17px;color:var(--muted);line-height:1.8;margin-bottom:48px">Votre demande de visite a bien été reçue. Notre équipe Eden Group vous contactera dans les 24 heures pour confirmer les détails.</p>
+    <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
+      <a href="{% url 'home' %}" class="btn btn-primary">Retour à l'accueil</a>
+      
+    </div>
+  </div>
+</div>
+{% endblock %}
