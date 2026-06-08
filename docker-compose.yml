@@ -3,7 +3,7 @@ services:
     build: .
     container_name: eden_dossier_web
     ports:
-      - "8000:8000"
+      - "8001:8000"
     volumes:
       - .:/app
     depends_on:
