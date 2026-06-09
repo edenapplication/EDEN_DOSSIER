@@ -1,0 +1,27 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}{{ action }} intitulé — Admin{% endblock %}
+{% block breadcrumb %}<a href="{% url 'admin_intitules' %}">Intitulés</a> › {{ action }}{% endblock %}
+
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">{{ action }} un intitulé</h1></div></div>
+<div style="max-width:520px">
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-section">
+      <div class="form-section-title">Informations</div>
+      <div class="form-group">
+        <label class="form-label">Intitulé *</label>
+        <input type="text" name="name" class="form-control" value="{{ intitule.name|default:'' }}" required placeholder="Ex : Lotissement Odza, Parcelle Bastos...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description (optionnel)</label>
+        <textarea name="description" class="form-control" rows="3" placeholder="Description de ce type de dossier...">{{ intitule.description|default:'' }}</textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px">
+      <button type="submit" class="btn btn-primary">{{ action }} →</button>
+      <a href="{% url 'admin_intitules' %}" class="btn btn-outline">Annuler</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

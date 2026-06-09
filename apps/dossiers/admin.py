@@ -10,8 +10,8 @@ class EtapeGlobaleAdmin(admin.ModelAdmin):
 
 @admin.register(Dossier)
 class DossierAdmin(admin.ModelAdmin):
-    list_display = ['reference', 'title', 'client', 'created_at']
-    search_fields = ['reference', 'title']
+    list_display = ['reference', 'client', 'get_title', 'created_at']
+    search_fields = ['reference', 'client__username', 'intitule__name']
 
 
 @admin.register(EtapeCochee)

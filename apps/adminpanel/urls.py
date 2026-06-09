@@ -14,10 +14,18 @@ urlpatterns = [
     path('promotions/<int:pk>/modifier/', views.admin_promotion_edit, name='admin_promotion_edit'),
     path('promotions/<int:pk>/supprimer/', views.admin_promotion_delete, name='admin_promotion_delete'),
 
-    path('clients/', views.admin_clients, name='admin_clients'),
-    path('clients/creer/', views.admin_client_create, name='admin_client_create'),
-    path('clients/<int:pk>/modifier/', views.admin_client_edit, name='admin_client_edit'),
-    path('clients/<int:pk>/supprimer/', views.admin_client_delete, name='admin_client_delete'),
+    path('intitules/', views.admin_intitules, name='admin_intitules'),
+    path('intitules/creer/', views.admin_intitule_create, name='admin_intitule_create'),
+    path('intitules/<int:pk>/modifier/', views.admin_intitule_edit, name='admin_intitule_edit'),
+    path('intitules/<int:pk>/supprimer/', views.admin_intitule_delete, name='admin_intitule_delete'),
+
+    path('utilisateurs/', views.admin_clients, name='admin_clients'),
+    path('utilisateurs/creer/', views.admin_client_create, name='admin_client_create'),
+    path('utilisateurs/<int:pk>/modifier/', views.admin_client_edit, name='admin_client_edit'),
+    path('utilisateurs/<int:pk>/supprimer/', views.admin_client_delete, name='admin_client_delete'),
+    path('utilisateurs/exporter/', views.admin_clients_export, name='admin_clients_export'),
+    path('utilisateurs/importer/', views.admin_clients_import, name='admin_clients_import'),
+    path('utilisateurs/modele-csv/', views.admin_clients_template, name='admin_clients_template'),
 
     path('etapes/', views.admin_etapes_globales, name='admin_etapes_globales'),
     path('etapes/creer/', views.admin_etape_globale_create, name='admin_etape_globale_create'),

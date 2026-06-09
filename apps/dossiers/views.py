@@ -19,15 +19,9 @@ def dossier_detail(request, pk):
     dossier = get_object_or_404(Dossier, pk=pk, client=request.user)
     dossier.appliquer_cochages_automatiques()
 
-    property_images = []
-    if dossier.property_link:
-        property_images = list(dossier.property_link.images.all())
-    if not property_images and dossier.photo:
-        property_images = [{'url': dossier.photo.url, 'is_raw': True}]
-
     return render(request, 'dossiers/detail.html', {
         'dossier': dossier,
         'etapes_technique': dossier.get_etapes_technique(),
         'etapes_morcellement': dossier.get_etapes_morcellement(),
-        'property_images': property_images,
+        
     })

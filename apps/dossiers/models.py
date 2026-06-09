@@ -4,6 +4,19 @@ from django.utils import timezone
 import datetime
 
 
+class IntituleDossier(models.Model):
+    name = models.CharField(max_length=200, verbose_name="Intitulé")
+    description = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Intitulé de dossier"
+        verbose_name_plural = "Intitulés de dossier"
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class EtapeGlobale(models.Model):
     TYPE_CHOICES = [
         ('technique', 'Technique'),
@@ -30,18 +43,17 @@ class Dossier(models.Model):
         on_delete=models.CASCADE,
         related_name='dossiers'
     )
-    title = models.CharField(max_length=200, verbose_name="Intitulé")
+    intitule = models.ForeignKey(
+        IntituleDossier,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name="Intitulé"
+    )
     reference = models.CharField(max_length=60, unique=True, verbose_name="Référence", blank=True)
     description = models.TextField(blank=True)
     superficie = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Superficie (m²)")
     date_paiement = models.DateField(null=True, blank=True, verbose_name="Date de paiement")
     photo = models.ImageField(upload_to='dossiers/', null=True, blank=True, verbose_name="Photo du dossier")
-    property_link = models.ForeignKey(
-        'properties.Property',
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        verbose_name="Terrain lié"
-    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -49,6 +61,9 @@ class Dossier(models.Model):
         verbose_name = "Dossier"
         verbose_name_plural = "Dossiers"
         ordering = ['-created_at']
+
+    def get_title(self):
+        return self.intitule.name if self.intitule else "Dossier sans intitulé"
 
     def save(self, *args, **kwargs):
         if not self.reference:
@@ -74,7 +89,7 @@ class Dossier(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.reference} — {self.title}"
+        return f"{self.reference} — {self.get_title()}"
 
     def get_jours_existence(self):
         return (timezone.now().date() - self.created_at.date()).days
@@ -114,19 +129,13 @@ class Dossier(models.Model):
         etapes = EtapeGlobale.objects.filter(type='technique')
         if not etapes.exists():
             return 0
-        return sum(
-            e.percentage for e in etapes
-            if self.etapes_cochees.filter(etape=e, is_done=True).exists()
-        )
+        return sum(e.percentage for e in etapes if self.etapes_cochees.filter(etape=e, is_done=True).exists())
 
     def get_progression_morcellement(self):
         etapes = EtapeGlobale.objects.filter(type='morcellement')
         if not etapes.exists():
             return 0
-        return sum(
-            e.percentage for e in etapes
-            if self.etapes_cochees.filter(etape=e, is_done=True).exists()
-        )
+        return sum(e.percentage for e in etapes if self.etapes_cochees.filter(etape=e, is_done=True).exists())
 
     def get_total_technique(self):
         return sum(e.percentage for e in EtapeGlobale.objects.filter(type='technique'))
@@ -156,48 +165,27 @@ class Dossier(models.Model):
         cochees = self.etapes_cochees.filter(
             etape__type='technique', is_done=True
         ).select_related('etape').order_by('-etape__order')
-        if cochees.exists():
-            return cochees.first().etape
-        return None
+        return cochees.first().etape if cochees.exists() else None
 
     def get_current_etape_morcellement(self):
         cochees = self.etapes_cochees.filter(
             etape__type='morcellement', is_done=True
         ).select_related('etape').order_by('-etape__order')
-        if cochees.exists():
-            return cochees.first().etape
-        return None
+        return cochees.first().etape if cochees.exists() else None
 
     def get_etapes_technique(self):
         result = []
         for eg in EtapeGlobale.objects.filter(type='technique'):
             cochee = self.etapes_cochees.filter(etape=eg).first()
-            result.append({
-                'etape': eg,
-                'is_done': cochee.is_done if cochee else False,
-                'is_auto': cochee.date_auto_coche is not None if cochee else False,
-            })
+            result.append({'etape': eg, 'is_done': cochee.is_done if cochee else False, 'is_auto': cochee.date_auto_coche is not None if cochee else False})
         return result
 
     def get_etapes_morcellement(self):
         result = []
         for eg in EtapeGlobale.objects.filter(type='morcellement'):
             cochee = self.etapes_cochees.filter(etape=eg).first()
-            result.append({
-                'etape': eg,
-                'is_done': cochee.is_done if cochee else False,
-                'is_auto': cochee.date_auto_coche is not None if cochee else False,
-            })
+            result.append({'etape': eg, 'is_done': cochee.is_done if cochee else False, 'is_auto': cochee.date_auto_coche is not None if cochee else False})
         return result
-
-    def get_property_images(self):
-        if self.property_link:
-            imgs = list(self.property_link.images.all())
-            if imgs:
-                return imgs
-        if self.photo:
-            return None
-        return None
 
 
 class EtapeCochee(models.Model):
@@ -205,12 +193,8 @@ class EtapeCochee(models.Model):
     etape = models.ForeignKey(EtapeGlobale, on_delete=models.CASCADE)
     is_done = models.BooleanField(default=False)
     done_at = models.DateTimeField(null=True, blank=True)
-    date_auto_coche = models.DateTimeField(null=True, blank=True, verbose_name="Date cochage auto prévue")
-    done_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True, blank=True
-    )
+    date_auto_coche = models.DateTimeField(null=True, blank=True)
+    done_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         unique_together = ['dossier', 'etape']
@@ -218,18 +202,14 @@ class EtapeCochee(models.Model):
         verbose_name_plural = "Étapes cochées"
 
     def __str__(self):
-        return f"{self.dossier.reference} — {self.etape.name} — {'✓' if self.is_done else '○'}"
+        return f"{self.dossier.reference} — {self.etape.name}"
 
 
 class DossierHistorique(models.Model):
     dossier = models.ForeignKey(Dossier, on_delete=models.CASCADE, related_name='historique')
     message = models.CharField(max_length=500)
     created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True, blank=True
-    )
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']

@@ -1,0 +1,43 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}Importer utilisateurs — Admin{% endblock %}
+{% block breadcrumb %}<a href="{% url 'admin_clients' %}">Utilisateurs</a> › Importer{% endblock %}
+
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Importer des utilisateurs</h1><p class="page-sub">Importez plusieurs utilisateurs depuis un fichier CSV</p></div></div>
+
+<div style="max-width:600px">
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header"><span class="card-title">Format attendu</span></div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Le fichier CSV doit contenir les colonnes suivantes (séparateur <code>;</code>) :</p>
+      <div style="background:var(--gray);border-radius:var(--radius-sm);padding:12px 16px;font-size:12px;font-family:monospace;color:var(--navy);line-height:2">
+        Identifiant ; Mot de passe ; Prénom ; Nom ; Email ; Téléphone ; Ville ; Rôle<br>
+        jean.dupont ; motdepasse ; Jean ; Dupont ; jean@mail.cm ; +237600000000 ; Yaoundé ; client<br>
+        marie.m ; pass456 ; Marie ; Martin ; marie@mail.cm ; +237600000001 ; Douala ; commercial
+      </div>
+      <div style="margin-top:16px;font-size:13px;color:var(--muted)">
+        Rôles acceptés : <code>client</code>, <code>commercial</code>, <code>admin</code>, <code>administrateur</code>
+      </div>
+      <div style="margin-top:16px">
+        <a href="{% url 'admin_clients_template' %}" class="btn btn-outline btn-sm">⬇ Télécharger le modèle CSV</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">Sélectionner le fichier</div>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label">Fichier CSV *</label>
+        <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+        <span class="form-hint">Encodage UTF-8 recommandé. Séparateur point-virgule.</span>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:8px">
+        <button type="submit" class="btn btn-primary">Importer →</button>
+        <a href="{% url 'admin_clients' %}" class="btn btn-outline">Annuler</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

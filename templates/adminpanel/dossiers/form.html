@@ -3,44 +3,53 @@
 {% block breadcrumb %}<a href="{% url 'admin_dossiers' %}">Dossiers</a> › {{ action }}{% endblock %}
 
 {% block content %}
-<div class="page-header"><div><h1 class="page-title">{{ action }} un dossier</h1><p class="page-sub">La référence est générée automatiquement à la sauvegarde.</p></div></div>
-<div style="max-width:760px">
+<div class="page-header">
+  <div><h1 class="page-title">{{ action }} un dossier</h1><p class="page-sub">La référence est générée automatiquement (EDG-YYYYMMDD-000X)</p></div>
+</div>
+<div style="max-width:720px">
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
     <div class="form-section">
       <div class="form-section-title">Informations principales</div>
-      <div class="form-group">
-        <label class="form-label">Intitulé du dossier *</label>
-        <input type="text" name="title" class="form-control" value="{{ dossier.title|default:'' }}" required placeholder="Ex : Parcelle Odza Lot 12">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Client *</label>
-        <select name="client" class="form-control" required>
-          <option value="">-- Sélectionner un client --</option>
-          {% for c in clients %}
-          <option value="{{ c.pk }}" {% if dossier.client_id == c.pk %}selected{% endif %}>{{ c.get_full_name|default:c.username }}</option>
-          {% endfor %}
-        </select>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Client *</label>
+          <select name="client" class="form-control" required>
+            <option value="">-- Sélectionner un client --</option>
+            {% for c in clients %}
+            <option value="{{ c.pk }}" {% if dossier.client_id == c.pk %}selected{% endif %}>
+              {{ c.get_full_name|default:c.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Intitulé *</label>
+          <select name="intitule" class="form-control" required>
+            <option value="">-- Sélectionner un intitulé --</option>
+            {% for i in intitules %}
+            <option value="{{ i.pk }}" {% if dossier.intitule_id == i.pk %}selected{% endif %}>{{ i.name }}</option>
+            {% endfor %}
+          </select>
+          <span class="form-hint">
+            Pas d'intitulé ? <a href="{% url 'admin_intitule_create' %}" style="color:var(--red)" target="_blank">Créer un intitulé →</a>
+          </span>
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Superficie (m²)</label>
-          <input type="number" name="superficie" class="form-control" value="{{ dossier.superficie|default:'' }}" step="0.01" placeholder="Ex : 600">
+          <input type="number" name="superficie" class="form-control" value="{{ dossier.superficie|default:'' }}" step="0.01" placeholder="600">
         </div>
         <div class="form-group">
           <label class="form-label">Date de paiement *</label>
           <input type="date" name="date_paiement" class="form-control" value="{{ dossier.date_paiement|date:'Y-m-d'|default:'' }}" required>
-          <span class="form-hint">Sert à générer la référence automatique EDG-YYYYMMDD-000X</span>
+          <span class="form-hint">Génère la référence automatiquement</span>
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Terrain associé</label>
-        <select name="property_link" class="form-control">
-          <option value="">-- Aucun terrain lié --</option>
-          {% for p in properties %}
-          <option value="{{ p.pk }}" {% if dossier.property_link_id == p.pk %}selected{% endif %}>{{ p.title }} — {{ p.location }}</option>
-          {% endfor %}
-        </select>
+        <label class="form-label">Notes internes</label>
+        <textarea name="description" class="form-control" rows="3" placeholder="Notes internes...">{{ dossier.description|default:'' }}</textarea>
       </div>
     </div>
     <div class="form-section">
@@ -49,16 +58,9 @@
       <img src="{{ dossier.photo.url }}" style="width:200px;height:130px;object-fit:cover;border-radius:8px;margin-bottom:12px">
       {% endif %}
       <div class="form-group">
-        <label class="form-label">Image associée au dossier</label>
+        <label class="form-label">Image du dossier</label>
         <input type="file" name="photo" class="form-control" accept="image/*">
-        <span class="form-hint">Sera affichée dans l'espace client en arrière-plan</span>
-      </div>
-    </div>
-    <div class="form-section">
-      <div class="form-section-title">Notes internes</div>
-      <div class="form-group">
-        <label class="form-label">Description / Notes</label>
-        <textarea name="description" class="form-control" rows="3" placeholder="Notes internes...">{{ dossier.description|default:'' }}</textarea>
+        <span class="form-hint">Visible dans l'espace client en arrière-plan</span>
       </div>
     </div>
     <div style="display:flex;gap:12px">

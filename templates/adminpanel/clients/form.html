@@ -1,24 +1,33 @@
 {% extends 'adminpanel/base.html' %}
-{% block title %}{{ action }} client — Admin{% endblock %}
-{% block breadcrumb %}<a href="{% url 'admin_clients' %}">Clients</a> › {{ action }}{% endblock %}
+{% block title %}{{ action }} utilisateur — Admin{% endblock %}
+{% block breadcrumb %}<a href="{% url 'admin_clients' %}">Utilisateurs</a> › {{ action }}{% endblock %}
+
 {% block content %}
-<div class="page-header"><div><h1 class="page-title">{{ action }} un client</h1></div></div>
+<div class="page-header"><div><h1 class="page-title">{{ action }} un utilisateur</h1></div></div>
 <div style="max-width:640px">
   <form method="post">
     {% csrf_token %}
     <div class="form-section">
-      <div class="form-section-title">Compte & Accès</div>
+      <div class="form-section-title">Rôle & Accès</div>
+      <div class="form-group">
+        <label class="form-label">Rôle *</label>
+        <select name="role" class="form-control">
+          {% for val, label in roles %}
+          <option value="{{ val }}" {% if client.role == val %}selected{% elif not client and val == 'client' %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <span class="form-hint">Admin et Commercial ont accès au panneau d'administration</span>
+      </div>
       {% if not client %}
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Identifiant (login) *</label>
           <input type="text" name="username" class="form-control" required placeholder="jean.mballa">
-          <span class="form-hint">Le client utilisera ceci pour se connecter</span>
+          <span class="form-hint">Utilisé pour la connexion</span>
         </div>
         <div class="form-group">
           <label class="form-label">Mot de passe *</label>
           <input type="text" name="password" class="form-control" required placeholder="Mot de passe provisoire">
-          <span class="form-hint">Transmis au client</span>
         </div>
       </div>
       {% else %}

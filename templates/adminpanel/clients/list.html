@@ -1,31 +1,64 @@
 {% extends 'adminpanel/base.html' %}
-{% block title %}Clients — Admin{% endblock %}
-{% block breadcrumb %}Clients{% endblock %}
-{% block topbar_actions %}<a href="{% url 'admin_client_create' %}" class="topbar-btn topbar-btn-primary">+ Créer client</a>{% endblock %}
+{% block title %}Utilisateurs — Admin{% endblock %}
+{% block breadcrumb %}Utilisateurs{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'admin_clients_template' %}" class="topbar-btn topbar-btn-outline" style="border:1.5px solid var(--border);color:var(--text)">⬇ Modèle CSV</a>
+<a href="{% url 'admin_clients_import' %}" class="topbar-btn topbar-btn-outline" style="border:1.5px solid var(--border);color:var(--text)">⬆ Importer</a>
+<a href="{% url 'admin_clients_export' %}{% if role_filter %}?role={{ role_filter }}{% endif %}" class="topbar-btn topbar-btn-outline" style="border:1.5px solid var(--border);color:var(--text)">⬇ Exporter CSV</a>
+<a href="{% url 'admin_client_create' %}" class="topbar-btn topbar-btn-primary">+ Créer</a>
+{% endblock %}
+
 {% block content %}
-<div class="page-header"><div><h1 class="page-title">Clients</h1><p class="page-sub">{{ clients.count }} utilisateur{{ clients.count|pluralize }}</p></div></div>
+<div class="page-header">
+  <div><h1 class="page-title">Utilisateurs</h1><p class="page-sub">{{ clients.count }} utilisateur{{ clients.count|pluralize }}</p></div>
+</div>
+
+<div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+  <a href="{% url 'admin_clients' %}" class="btn btn-sm {% if not role_filter %}btn-secondary{% else %}btn-outline{% endif %}">Tous</a>
+  {% for val, label in roles %}
+  <a href="{% url 'admin_clients' %}?role={{ val }}" class="btn btn-sm {% if role_filter == val %}btn-secondary{% else %}btn-outline{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+
 <div class="card">
   <div class="table-wrap">
     <table class="table">
-      <thead><tr><th>Client</th><th>Identifiant</th><th>Email</th><th>Téléphone</th><th>Ville</th><th>Statut</th><th>Actions</th></tr></thead>
+      <thead>
+        <tr><th>Utilisateur</th><th>Identifiant</th><th>Contact</th><th>Ville</th><th>Rôle</th><th>Statut</th><th>Actions</th></tr>
+      </thead>
       <tbody>
         {% for c in clients %}
         <tr>
           <td>
             <div style="display:flex;align-items:center;gap:10px">
               <div style="width:32px;height:32px;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0">{{ c.get_initials }}</div>
-              <div><div style="font-weight:500">{{ c.get_full_name|default:"—" }}</div>{% if c.is_staff %}<span class="badge badge-blue" style="font-size:10px">Admin</span>{% endif %}</div>
+              <div>
+                <div style="font-weight:500">{{ c.get_full_name|default:"—" }}</div>
+                <div style="font-size:11px;color:var(--muted)">{{ c.email|default:"" }}</div>
+              </div>
             </div>
           </td>
           <td><code style="font-size:12px;background:var(--gray);padding:2px 8px;border-radius:4px">{{ c.username }}</code></td>
-          <td>{{ c.email|default:"—" }}</td>
-          <td>{{ c.phone|default:"—" }}</td>
-          <td>{{ c.city|default:"—" }}</td>
+          <td style="font-size:13px">{{ c.phone|default:"—" }}</td>
+          <td style="font-size:13px">{{ c.city|default:"—" }}</td>
+          <td>
+            <span class="badge {% if c.role == 'admin' %}badge-red{% elif c.role == 'commercial' %}badge-blue{% else %}badge-gray{% endif %}">
+              {{ c.get_role_display }}
+            </span>
+          </td>
           <td><span class="badge {% if c.is_active %}badge-green{% else %}badge-red{% endif %}">{% if c.is_active %}Actif{% else %}Inactif{% endif %}</span></td>
-          <td><a href="{% url 'admin_client_edit' c.pk %}" class="btn btn-outline btn-xs">Modifier</a></td>
+          <td style="white-space:nowrap">
+            <a href="{% url 'admin_client_edit' c.pk %}" class="btn btn-outline btn-xs">Modifier</a>
+            {% if c.pk != request.user.pk %}
+            <form method="post" action="{% url 'admin_client_delete' c.pk %}" style="display:inline" onsubmit="return confirm('Supprimer cet utilisateur ?')">
+              {% csrf_token %}<button type="submit" class="btn btn-danger btn-xs">✕</button>
+            </form>
+            {% endif %}
+          </td>
         </tr>
         {% empty %}
-        <tr><td colspan="7" style="text-align:center;padding:48px;color:var(--muted)">Aucun client</td></tr>
+        <tr><td colspan="7" style="text-align:center;padding:48px;color:var(--muted)">Aucun utilisateur</td></tr>
         {% endfor %}
       </tbody>
     </table>

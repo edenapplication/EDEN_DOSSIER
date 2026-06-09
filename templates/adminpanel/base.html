@@ -149,6 +149,9 @@ button{cursor:pointer;font-family:inherit}
     <a href="{% url 'admin_clients' %}" class="sidebar-link {% if 'client' in request.resolver_match.url_name %}active{% endif %}">
       <span class="sidebar-icon">👤</span> Clients
     </a>
+    <a href="{% url 'admin_intitules' %}" class="sidebar-link {% if 'intitule' in request.resolver_match.url_name %}active{% endif %}">
+  <span class="sidebar-icon">🏷</span> Intitulés dossiers
+</a>
     <a href="{% url 'admin_dossiers' %}" class="sidebar-link {% if request.resolver_match.url_name in 'admin_dossiers,admin_dossier_detail,admin_dossier_create' %}active{% endif %}">
       <span class="sidebar-icon">📁</span> Dossiers
     </a>
