@@ -12,11 +12,11 @@
       <div class="form-group">
         <label class="form-label">Rôle *</label>
         <select name="role" class="form-control">
-          {% for val, label in roles %}
-          <option value="{{ val }}" {% if client.role == val %}selected{% elif not client and val == 'client' %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
+          <option value="client" {% if client.role == 'client' or not client %}selected{% endif %}>Client</option>
+          <option value="commercial" {% if client.role == 'commercial' %}selected{% endif %}>Commercial</option>
+          <option value="admin" {% if client.role == 'admin' %}selected{% endif %}>Administrateur</option>
         </select>
-        <span class="form-hint">Admin et Commercial ont accès au panneau d'administration</span>
+        <span class="form-hint">Admin et Commercial ont accès au panneau d'administration. Le Commercial ne peut pas gérer les dossiers.</span>
       </div>
       {% if not client %}
       <div class="form-row">

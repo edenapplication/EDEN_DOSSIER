@@ -87,9 +87,9 @@
     <div class="dossier-banner-info">
       <div class="banner-site">EDEN · GROUP</div>
       <div class="banner-greeting">
-        Bonjour, {{ user.first_name|default:user.username }}<br>
-        <em style="font-size:0.75em;color:rgba(255,255,255,.7)">{{ dossier.title }}</em>
-      </div>
+  Bonjour, {{ user.first_name|default:user.username }}<br>
+  <em style="font-size:0.75em;color:rgba(255,255,255,.7)">{{ dossier.get_title }}</em>
+</div>
       <div class="banner-details">
         <div class="banner-detail-item">
           <span class="banner-detail-label">Référence</span>

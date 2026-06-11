@@ -93,8 +93,6 @@ button{cursor:pointer;font-family:inherit}
 .btn-danger:hover{background:var(--red);color:#fff}
 .btn-outline{background:none;color:var(--navy);border:1.5px solid var(--border)}
 .btn-outline:hover{border-color:var(--navy)}
-.btn-success{background:rgba(16,185,129,.1);color:#065f46;border:1px solid rgba(16,185,129,.2)}
-.btn-success:hover{background:#10b981;color:#fff}
 .btn-sm{padding:6px 14px;font-size:11px}
 .btn-xs{padding:4px 10px;font-size:11px}
 .form-group{margin-bottom:18px}
@@ -115,8 +113,6 @@ button{cursor:pointer;font-family:inherit}
 .alert-error{background:rgba(193,18,31,.06);border:1px solid rgba(193,18,31,.2);color:var(--red)}
 .progress-bar-wrap{height:6px;background:var(--gray);border-radius:100px;overflow:hidden}
 .progress-bar{height:100%;background:var(--gradient);border-radius:100px;transition:width 1s ease}
-
-/* NOTIFICATION BANNER */
 .notif-banner{background:linear-gradient(135deg,rgba(245,158,11,.12),rgba(245,158,11,.06));border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-sm);padding:14px 20px;margin-bottom:24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .notif-banner-icon{font-size:20px;flex-shrink:0}
 .notif-banner-text{flex:1;font-size:13px;color:#92400e;line-height:1.5}
@@ -129,9 +125,10 @@ button{cursor:pointer;font-family:inherit}
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
     <div class="sidebar-logo-text">EDEN<span style="background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">·</span>GROUP</div>
-    <div class="sidebar-logo-badge">Administration</div>
+    <div class="sidebar-logo-badge">{{ request.user.get_role_display }}</div>
   </div>
   <nav class="sidebar-nav">
+
     <div class="sidebar-section">Tableau de bord</div>
     <a href="{% url 'admin_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
       <span class="sidebar-icon">⊞</span> Vue d'ensemble
@@ -147,17 +144,19 @@ button{cursor:pointer;font-family:inherit}
 
     <div class="sidebar-section">Clients & Dossiers</div>
     <a href="{% url 'admin_clients' %}" class="sidebar-link {% if 'client' in request.resolver_match.url_name %}active{% endif %}">
-      <span class="sidebar-icon">👤</span> Clients
+      <span class="sidebar-icon">👤</span> Utilisateurs
     </a>
     <a href="{% url 'admin_intitules' %}" class="sidebar-link {% if 'intitule' in request.resolver_match.url_name %}active{% endif %}">
-  <span class="sidebar-icon">🏷</span> Intitulés dossiers
-</a>
-    <a href="{% url 'admin_dossiers' %}" class="sidebar-link {% if request.resolver_match.url_name in 'admin_dossiers,admin_dossier_detail,admin_dossier_create' %}active{% endif %}">
+      <span class="sidebar-icon">🏷</span> Intitulés dossiers
+    </a>
+    <a href="{% url 'admin_dossiers' %}" class="sidebar-link {% if 'admin_dossiers' == request.resolver_match.url_name or 'admin_dossier_detail' == request.resolver_match.url_name or 'admin_dossier_create' == request.resolver_match.url_name %}active{% endif %}">
       <span class="sidebar-icon">📁</span> Dossiers
     </a>
     <a href="{% url 'admin_etapes_globales' %}" class="sidebar-link {% if 'etape' in request.resolver_match.url_name %}active{% endif %}">
       <span class="sidebar-icon">✓</span> Étapes des dossiers
     </a>
+
+    {% if request.user.role == 'admin' %}
     <a href="{% url 'admin_dossiers_alerte' %}" class="sidebar-link {% if 'alerte' in request.resolver_match.url_name %}active{% endif %}">
       <span class="sidebar-icon">⚠</span> Dossiers +45 jours
       {% load dossier_tags %}{% get_alerte_count as alerte_count %}{% if alerte_count > 0 %}<span class="sidebar-badge-orange">{{ alerte_count }}</span>{% endif %}
@@ -165,6 +164,7 @@ button{cursor:pointer;font-family:inherit}
     <a href="{% url 'admin_reservations' %}" class="sidebar-link {% if 'reservation' in request.resolver_match.url_name %}active{% endif %}">
       <span class="sidebar-icon">📅</span> Réservations
     </a>
+    {% endif %}
 
     <div class="sidebar-section">Chatbot</div>
     <a href="{% url 'admin_chatbot' %}" class="sidebar-link {% if 'chatbot' in request.resolver_match.url_name %}active{% endif %}">
@@ -184,7 +184,7 @@ button{cursor:pointer;font-family:inherit}
       <div class="sidebar-avatar">{{ request.user.get_initials }}</div>
       <div>
         <div class="sidebar-user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
-        <div class="sidebar-user-role">Administrateur</div>
+        <div class="sidebar-user-role">{{ request.user.get_role_display }}</div>
       </div>
     </div>
   </div>

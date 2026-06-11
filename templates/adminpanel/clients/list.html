@@ -3,33 +3,45 @@
 {% block breadcrumb %}Utilisateurs{% endblock %}
 
 {% block topbar_actions %}
-<a href="{% url 'admin_clients_template' %}" class="topbar-btn topbar-btn-outline" style="border:1.5px solid var(--border);color:var(--text)">⬇ Modèle CSV</a>
-<a href="{% url 'admin_clients_import' %}" class="topbar-btn topbar-btn-outline" style="border:1.5px solid var(--border);color:var(--text)">⬆ Importer</a>
-<a href="{% url 'admin_clients_export' %}{% if role_filter %}?role={{ role_filter }}{% endif %}" class="topbar-btn topbar-btn-outline" style="border:1.5px solid var(--border);color:var(--text)">⬇ Exporter CSV</a>
+<a href="{% url 'admin_clients_template' %}" class="topbar-btn" style="border:1.5px solid var(--border);color:var(--text);background:#fff">⬇ Modèle CSV</a>
+<a href="{% url 'admin_clients_import' %}" class="topbar-btn" style="border:1.5px solid var(--border);color:var(--text);background:#fff">⬆ Importer</a>
+<a href="{% url 'admin_clients_export' %}" class="topbar-btn" style="border:1.5px solid var(--border);color:var(--text);background:#fff">⬇ Exporter</a>
 <a href="{% url 'admin_client_create' %}" class="topbar-btn topbar-btn-primary">+ Créer</a>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.filter-bar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.search-input{flex:1;min-width:200px;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
+.search-input:focus{border-color:var(--navy)}
+.role-btn{padding:7px 16px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;border:1.5px solid var(--border);background:#fff;cursor:pointer;transition:all .2s;letter-spacing:.5px;text-decoration:none;color:var(--text)}
+.role-btn.active,.role-btn:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
+.hidden-row{display:none}
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="page-header">
-  <div><h1 class="page-title">Utilisateurs</h1><p class="page-sub">{{ clients.count }} utilisateur{{ clients.count|pluralize }}</p></div>
+  <div><h1 class="page-title">Utilisateurs</h1><p class="page-sub" id="countLabel">{{ clients.count }} utilisateur{{ clients.count|pluralize }}</p></div>
 </div>
 
-<div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
-  <a href="{% url 'admin_clients' %}" class="btn btn-sm {% if not role_filter %}btn-secondary{% else %}btn-outline{% endif %}">Tous</a>
-  {% for val, label in roles %}
-  <a href="{% url 'admin_clients' %}?role={{ val }}" class="btn btn-sm {% if role_filter == val %}btn-secondary{% else %}btn-outline{% endif %}">{{ label }}</a>
-  {% endfor %}
+<div class="filter-bar">
+  <input type="text" class="search-input" id="searchInput" placeholder="Rechercher par nom, identifiant, email, ville..." oninput="filterTable()">
+  <button class="role-btn active" id="btn-all" onclick="filterRole('',this)">Tous</button>
+  <button class="role-btn" id="btn-admin" onclick="filterRole('admin',this)">Admin</button>
+  <button class="role-btn" id="btn-commercial" onclick="filterRole('commercial',this)">Commercial</button>
+  <button class="role-btn" id="btn-client" onclick="filterRole('client',this)">Client</button>
 </div>
 
 <div class="card">
   <div class="table-wrap">
-    <table class="table">
+    <table class="table" id="usersTable">
       <thead>
         <tr><th>Utilisateur</th><th>Identifiant</th><th>Contact</th><th>Ville</th><th>Rôle</th><th>Statut</th><th>Actions</th></tr>
       </thead>
       <tbody>
         {% for c in clients %}
-        <tr>
+        <tr data-role="{{ c.role }}" data-search="{{ c.username|lower }} {{ c.first_name|lower }} {{ c.last_name|lower }} {{ c.email|lower }} {{ c.city|lower }} {{ c.phone|lower }}">
           <td>
             <div style="display:flex;align-items:center;gap:10px">
               <div style="width:32px;height:32px;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0">{{ c.get_initials }}</div>
@@ -64,4 +76,31 @@
     </table>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentRole = '';
+
+function filterRole(role, btn){
+  currentRole = role;
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  filterTable();
+}
+
+function filterTable(){
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  const rows = document.querySelectorAll('#usersTable tbody tr[data-role]');
+  let visible = 0;
+  rows.forEach(row=>{
+    const matchRole = !currentRole || row.dataset.role === currentRole;
+    const matchSearch = !q || row.dataset.search.includes(q);
+    const show = matchRole && matchSearch;
+    row.style.display = show ? '' : 'none';
+    if(show) visible++;
+  });
+  document.getElementById('countLabel').textContent = visible + ' utilisateur' + (visible > 1 ? 's' : '');
+}
+</script>
 {% endblock %}

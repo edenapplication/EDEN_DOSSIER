@@ -5,12 +5,12 @@
 
 {% block content %}
 <div class="page-header">
-  <div><h1 class="page-title">Intitulés de dossier</h1><p class="page-sub">Définissez les types de dossiers disponibles à la création</p></div>
+  <div><h1 class="page-title">Nom du Site</h1><p class="page-sub">Définissez les types de dossiers disponibles à la création</p></div>
 </div>
 <div class="card">
   <div class="table-wrap">
     <table class="table">
-      <thead><tr><th>Intitulé</th><th>Description</th><th>Dossiers liés</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Site</th><th>Description</th><th>Dossiers liés</th><th>Actions</th></tr></thead>
       <tbody>
         {% for obj in intitules %}
         <tr>
@@ -25,7 +25,7 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="4" style="text-align:center;padding:48px;color:var(--muted)">Aucun intitulé créé</td></tr>
+        <tr><td colspan="4" style="text-align:center;padding:48px;color:var(--muted)">Aucun Site créé</td></tr>
         {% endfor %}
       </tbody>
     </table>
