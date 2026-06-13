@@ -24,6 +24,13 @@
 .toggle-btn.last-etape{border-color:var(--red);border-width:2px}
 .locked-banner{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;color:#92400e;margin-bottom:20px;display:flex;align-items:center;gap:8px}
 .auto-info{background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.15);border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:#6d28d9;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.select-all-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 0;margin-bottom:8px;border-bottom:2px solid var(--border)}
+.select-all-label{font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+.select-all-btns{display:flex;gap:8px}
+.select-all-btn{padding:5px 14px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;border:1.5px solid var(--border);background:#fff;cursor:pointer;transition:all .2s;letter-spacing:.5px;text-transform:uppercase;color:var(--navy)}
+.select-all-btn:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
+.select-all-btn.danger{border-color:rgba(193,18,31,.3);color:var(--red)}
+.select-all-btn.danger:hover{background:var(--red);color:#fff;border-color:var(--red)}
 .hist-row{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px}
 .hist-row:last-child{border-bottom:none}
 .hist-dot{width:5px;height:5px;border-radius:50%;background:var(--red);flex-shrink:0;margin-top:5px}
@@ -34,14 +41,12 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">{{ dossier.title }}</h1>
-    <p class="page-sub">{{ dossier.reference }} · {{ dossier.client.get_full_name|default:dossier.client.username }} · Créé il y a {{ dossier.get_jours_existence }} jours</p>
+    <h1 class="page-title">{{ dossier.get_title }}</h1>
+    <p class="page-sub">{{ dossier.reference }} · {{ dossier.client.get_full_name|default:dossier.client.username }} · {{ dossier.get_jours_existence }} jours</p>
   </div>
   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
     <span class="badge {% if dossier.is_complete %}badge-green{% else %}badge-yellow{% endif %}">{{ dossier.get_statut_display }}</span>
-    {% if dossier.is_alerte_45j %}
-    <span class="badge badge-orange">⚠ +45 jours</span>
-    {% endif %}
+    {% if dossier.is_alerte_45j %}<span class="badge badge-orange">⚠ +45 jours</span>{% endif %}
     <form method="post" action="{% url 'admin_dossier_delete' dossier.pk %}" onsubmit="return confirm('Supprimer ce dossier ?')">
       {% csrf_token %}<button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
     </form>
@@ -49,8 +54,7 @@
 </div>
 
 <div class="auto-info">
-  🤖 <strong>Cochage automatique actif</strong> — 1 étape/semaine (sauf la dernière de chaque section, cochée manuellement obligatoirement).
-  Vous pouvez cocher/décocher manuellement à tout moment.
+  🤖 <strong>Cochage automatique actif</strong> — 1 étape/semaine sauf la dernière (manuelle). Cochage manuel disponible à tout moment.
 </div>
 
 <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:start">
@@ -62,6 +66,7 @@
         <button class="tab" onclick="switchTab(this,'morc')">🗺 Morcellement {% if morc_locked %}🔒{% endif %}</button>
       </div>
 
+      <!-- ── TECHNIQUE ── -->
       <div class="panel active" id="panel-tech">
         <div class="donut-wrap">
           <div class="donut-container">
@@ -79,23 +84,39 @@
             <div style="font-size:12px;color:var(--muted)">{{ prog_tech }} / {{ total_tech }}%</div>
           </div>
         </div>
+
         {% if current_tech %}
         <div class="current-etape-msg" id="msg-tech">
-          {{ dossier.client.get_full_name|default:dossier.client.username }}, votre dossier est actuellement à l'étape <strong>{{ current_tech.name }}</strong>{% if current_tech.description %} — {{ current_tech.description }}{% endif %}
+          {{ dossier.client.get_full_name|default:dossier.client.username }}, votre dossier est actuellement à l'étape
+          <strong>{{ current_tech.name }}</strong>{% if current_tech.description %} — {{ current_tech.description|safe }}{% endif %}
         </div>
         {% else %}
         <div class="current-etape-msg" id="msg-tech" style="display:none"></div>
         {% endif %}
+
+        {% if etapes_tech %}
+        <div class="select-all-bar">
+          <span class="select-all-label">Étapes techniques ({{ etapes_tech|length }})</span>
+          <div class="select-all-btns">
+            <button type="button" class="select-all-btn" onclick="selectAll('tech', true)" title="Cocher toutes les étapes sauf la dernière">✓ Tout cocher</button>
+            <button type="button" class="select-all-btn danger" onclick="selectAll('tech', false)">✕ Tout décocher</button>
+          </div>
+        </div>
+        {% endif %}
+
         {% for item in etapes_tech %}
-        <div class="etape-row">
+        <div class="etape-row" id="row-tech-{{ item.etape.pk }}">
           <button class="toggle-btn {% if item.is_done %}done{% endif %} {% if item.etape.pk == last_tech_id %}last-etape{% endif %}"
             id="btn-tech-{{ item.etape.pk }}"
+            data-type="tech"
+            data-pk="{{ item.etape.pk }}"
+            data-done="{{ item.is_done|yesno:'true,false' }}"
             onclick="toggleEtape({{ dossier.pk }}, {{ item.etape.pk }}, 'tech')"
-            title="{% if item.etape.pk == last_tech_id %}Dernière étape — cochage manuel obligatoire{% elif item.is_done %}Annuler{% else %}Valider{% endif %}">
+            title="{% if item.etape.pk == last_tech_id %}Dernière étape — cochage manuel{% elif item.is_done %}Annuler{% else %}Valider{% endif %}">
             {% if item.is_done %}✓{% endif %}
           </button>
           <div style="flex:1">
-            <div style="font-size:13.5px;{% if item.is_done %}font-weight:500;color:var(--navy){% else %}color:var(--text){% endif %}">
+            <div style="font-size:13.5px;{% if item.is_done %}font-weight:500;color:var(--navy){% else %}color:var(--text){% endif %}" id="label-tech-{{ item.etape.pk }}">
               {{ item.etape.name }}
               {% if item.etape.pk == last_tech_id %}<span style="font-size:11px;color:var(--red);margin-left:6px">★ Manuelle</span>{% endif %}
               {% if item.is_auto and item.etape.pk != last_tech_id %}<span class="badge badge-auto" style="margin-left:6px">Auto</span>{% endif %}
@@ -108,6 +129,7 @@
         {% endfor %}
       </div>
 
+      <!-- ── MORCELLEMENT ── -->
       <div class="panel" id="panel-morc">
         {% if morc_locked %}
         <div class="locked-banner">🔒 Le morcellement est accessible uniquement quand le technique est à 100%.</div>
@@ -128,23 +150,39 @@
             <div style="font-size:12px;color:var(--muted)">{{ prog_morc }} / {{ total_morc }}%</div>
           </div>
         </div>
+
         {% if current_morc %}
         <div class="current-etape-msg" id="msg-morc">
-          {{ dossier.client.get_full_name|default:dossier.client.username }}, votre dossier est actuellement à l'étape <strong>{{ current_morc.name }}</strong>{% if current_morc.description %} — {{ current_morc.description }}{% endif %}
+          {{ dossier.client.get_full_name|default:dossier.client.username }}, votre dossier est actuellement à l'étape
+          <strong>{{ current_morc.name }}</strong>{% if current_morc.description %} — {{ current_morc.description|safe }}{% endif %}
         </div>
         {% else %}
         <div class="current-etape-msg" id="msg-morc" style="display:none"></div>
         {% endif %}
+
+        {% if etapes_morc %}
+        <div class="select-all-bar">
+          <span class="select-all-label">Étapes morcellement ({{ etapes_morc|length }})</span>
+          <div class="select-all-btns">
+            <button type="button" class="select-all-btn" {% if morc_locked %}disabled style="opacity:.4;cursor:not-allowed"{% else %}onclick="selectAll('morc', true)"{% endif %} title="{% if morc_locked %}Technique non complété{% else %}Cocher toutes les étapes sauf la dernière{% endif %}">✓ Tout cocher</button>
+            <button type="button" class="select-all-btn danger" {% if morc_locked %}disabled style="opacity:.4;cursor:not-allowed"{% else %}onclick="selectAll('morc', false)"{% endif %}>✕ Tout décocher</button>
+          </div>
+        </div>
+        {% endif %}
+
         {% for item in etapes_morc %}
-        <div class="etape-row">
+        <div class="etape-row" id="row-morc-{{ item.etape.pk }}">
           <button class="toggle-btn {% if item.is_done %}done{% endif %} {% if item.etape.pk == last_morc_id %}last-etape{% endif %}"
             id="btn-morc-{{ item.etape.pk }}"
+            data-type="morc"
+            data-pk="{{ item.etape.pk }}"
+            data-done="{{ item.is_done|yesno:'true,false' }}"
             onclick="toggleEtape({{ dossier.pk }}, {{ item.etape.pk }}, 'morc')"
             {% if morc_locked %}disabled title="Technique non complété"{% else %}title="{% if item.etape.pk == last_morc_id %}Dernière étape — cochage manuel{% elif item.is_done %}Annuler{% else %}Valider{% endif %}"{% endif %}>
             {% if item.is_done %}✓{% endif %}
           </button>
           <div style="flex:1">
-            <div style="font-size:13.5px;{% if item.is_done %}font-weight:500;color:var(--navy){% else %}color:{% if morc_locked %}var(--muted){% else %}var(--text){% endif %}{% endif %}">
+            <div style="font-size:13.5px;{% if item.is_done %}font-weight:500;color:var(--navy){% else %}color:{% if morc_locked %}var(--muted){% else %}var(--text){% endif %}{% endif %}" id="label-morc-{{ item.etape.pk }}">
               {{ item.etape.name }}
               {% if item.etape.pk == last_morc_id %}<span style="font-size:11px;color:var(--red);margin-left:6px">★ Manuelle</span>{% endif %}
               {% if item.is_auto and item.etape.pk != last_morc_id %}<span class="badge badge-auto" style="margin-left:6px">Auto</span>{% endif %}
@@ -174,7 +212,6 @@
           <tr><td style="padding:7px 0;color:var(--muted)">Existence</td><td style="padding:7px 0"><strong>{{ dossier.get_jours_existence }} jours</strong></td></tr>
           {% if dossier.superficie %}<tr><td style="padding:7px 0;color:var(--muted)">Superficie</td><td style="padding:7px 0">{{ dossier.superficie }} m²</td></tr>{% endif %}
           {% if dossier.date_paiement %}<tr><td style="padding:7px 0;color:var(--muted)">Paiement</td><td style="padding:7px 0">{{ dossier.date_paiement|date:"d/m/Y" }}</td></tr>{% endif %}
-          {% if dossier.property_link %}<tr><td style="padding:7px 0;color:var(--muted)">Terrain</td><td style="padding:7px 0">{{ dossier.property_link.title }}</td></tr>{% endif %}
         </table>
       </div>
     </div>
@@ -203,7 +240,7 @@ function buildDonut(canvasId, pct, total, color){
   if(!canvas) return null;
   return new Chart(canvas, {
     type: 'doughnut',
-    data: { datasets: [{ data: [pct, Math.max(0,total-pct)], backgroundColor: [color, '#f2f1ef'], borderWidth: 0 }] },
+    data: { datasets: [{ data: [pct, Math.max(0,total-pct)], backgroundColor: [color,'#f2f1ef'], borderWidth: 0 }] },
     options: { cutout: '72%', responsive: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, animation: { duration: 900 } }
   });
 }
@@ -217,9 +254,12 @@ function switchTab(btn, id){
   document.getElementById('panel-'+id).classList.add('active');
 }
 
+const dossierId = {{ dossier.pk }};
 const clientName = "{{ dossier.client.get_full_name|default:dossier.client.username }}";
 const totalTech = {{ total_tech|default:100 }};
 const totalMorc = {{ total_morc|default:100 }};
+const lastTechId = {{ last_tech_id|default:'null' }};
+const lastMorcId = {{ last_morc_id|default:'null' }};
 
 async function toggleEtape(dossierId, etapeId, type){
   const btnId = 'btn-'+type+'-'+etapeId;
@@ -233,34 +273,77 @@ async function toggleEtape(dossierId, etapeId, type){
     const data = await res.json();
     if(data.status === 'error'){ alert(data.message); btn.disabled=false; return; }
     if(data.status === 'ok'){
-      if(data.is_done){
-        btn.classList.add('done'); btn.textContent='✓';
-        btn.nextElementSibling.firstElementChild.style.fontWeight='500';
-        btn.nextElementSibling.firstElementChild.style.color='var(--navy)';
-      } else {
-        btn.classList.remove('done'); btn.textContent='';
-        btn.nextElementSibling.firstElementChild.style.fontWeight='400';
-        btn.nextElementSibling.firstElementChild.style.color='var(--text)';
-      }
-      if(type === 'tech'){
-        document.getElementById('tech-pct-label').textContent = data.progression+'%';
-        document.getElementById('prog-tech-bar').style.width = data.pct_bar+'%';
-        if(donutTech){ donutTech.data.datasets[0].data=[data.progression, Math.max(0,totalTech-data.progression)]; donutTech.update(); }
-        const msgTech = document.getElementById('msg-tech');
-        if(data.current_etape_name){ msgTech.style.display='block'; msgTech.innerHTML=`${clientName}, votre dossier est actuellement à l'étape <strong style="color:var(--red)">${data.current_etape_name}</strong>${data.current_etape_desc?' — '+data.current_etape_desc:''}`; }
-        else { msgTech.style.display='none'; }
-        if(data.morc_unlocked){ document.querySelectorAll('[id^="btn-morc-"]').forEach(b=>{b.disabled=false;}); const banner=document.querySelector('.locked-banner'); if(banner)banner.style.display='none'; }
-      } else {
-        document.getElementById('morc-pct-label').textContent = data.progression+'%';
-        document.getElementById('prog-morc-bar').style.width = data.pct_bar+'%';
-        if(donutMorc){ donutMorc.data.datasets[0].data=[data.progression, Math.max(0,totalMorc-data.progression)]; donutMorc.update(); }
-        const msgMorc = document.getElementById('msg-morc');
-        if(data.current_etape_name){ msgMorc.style.display='block'; msgMorc.innerHTML=`${clientName}, votre dossier est actuellement à l'étape <strong style="color:var(--red)">${data.current_etape_name}</strong>${data.current_etape_desc?' — '+data.current_etape_desc:''}`; }
-        else { msgMorc.style.display='none'; }
-      }
+      applyToggleUI(btn, etapeId, type, data);
     }
   } catch(e){ console.error(e); }
   btn.disabled = false;
+}
+
+function applyToggleUI(btn, etapeId, type, data){
+  const labelEl = document.getElementById('label-'+type+'-'+etapeId);
+  if(data.is_done){
+    btn.classList.add('done'); btn.textContent='✓';
+    btn.dataset.done = 'true';
+    if(labelEl){ labelEl.style.fontWeight='500'; labelEl.style.color='var(--navy)'; }
+  } else {
+    btn.classList.remove('done'); btn.textContent='';
+    btn.dataset.done = 'false';
+    if(labelEl){ labelEl.style.fontWeight='400'; labelEl.style.color='var(--text)'; }
+  }
+  const pct = data.progression;
+  const pctBar = data.pct_bar;
+  if(type === 'tech'){
+    document.getElementById('tech-pct-label').textContent = pct+'%';
+    document.getElementById('prog-tech-bar').style.width = pctBar+'%';
+    if(donutTech){ donutTech.data.datasets[0].data=[pct, Math.max(0,totalTech-pct)]; donutTech.update(); }
+    const msg = document.getElementById('msg-tech');
+    if(data.current_etape_name){ msg.style.display='block'; msg.innerHTML=`${clientName}, votre dossier est actuellement à l'étape <strong style="color:var(--red)">${data.current_etape_name}</strong>${data.current_etape_desc?' — '+data.current_etape_desc:''}`; }
+    else { msg.style.display='none'; }
+    if(data.morc_unlocked){
+      document.querySelectorAll('[id^="btn-morc-"]').forEach(b=>{ b.disabled=false; });
+      const banner = document.querySelector('.locked-banner');
+      if(banner) banner.style.display='none';
+      document.querySelectorAll('.select-all-btn').forEach(b=>{ b.disabled=false; b.style.opacity='1'; b.style.cursor='pointer'; });
+    }
+  } else {
+    document.getElementById('morc-pct-label').textContent = pct+'%';
+    document.getElementById('prog-morc-bar').style.width = pctBar+'%';
+    if(donutMorc){ donutMorc.data.datasets[0].data=[pct, Math.max(0,totalMorc-pct)]; donutMorc.update(); }
+    const msg = document.getElementById('msg-morc');
+    if(data.current_etape_name){ msg.style.display='block'; msg.innerHTML=`${clientName}, votre dossier est actuellement à l'étape <strong style="color:var(--red)">${data.current_etape_name}</strong>${data.current_etape_desc?' — '+data.current_etape_desc:''}`; }
+    else { msg.style.display='none'; }
+  }
+}
+
+async function selectAll(type, shouldCheck){
+  const btns = Array.from(document.querySelectorAll(`[id^="btn-${type}-"]`));
+  const lastId = type === 'tech' ? lastTechId : lastMorcId;
+
+  for(const btn of btns){
+    if(btn.disabled) continue;
+    const etapeId = parseInt(btn.dataset.pk);
+    const isDone = btn.dataset.done === 'true';
+
+    if(shouldCheck){
+      if(etapeId === lastId) continue;
+      if(isDone) continue;
+    } else {
+      if(!isDone) continue;
+    }
+
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/admin-panel/dossiers/${dossierId}/etape/${etapeId}/toggle/`, {
+        method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}
+      });
+      const data = await res.json();
+      if(data.status === 'ok'){
+        applyToggleUI(btn, etapeId, type, data);
+      }
+    } catch(e){ console.error(e); }
+    btn.disabled = false;
+    await new Promise(r=>setTimeout(r, 120));
+  }
 }
 </script>
 {% endblock %}

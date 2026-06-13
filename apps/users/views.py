@@ -1,10 +1,11 @@
 from django.shortcuts import render, redirect
-from django.contrib.auth import login, logout
+from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .forms import LoginForm, UserProfileForm
+from .forms import UserProfileForm
 from apps.dossiers.models import Dossier
 from apps.promotions.models import Promotion
+from apps.users.models import User
 
 
 def login_view(request):
@@ -12,17 +13,42 @@ def login_view(request):
         if request.user.is_admin_role():
             return redirect('admin_dashboard')
         return redirect('dashboard')
-    form = LoginForm(request, data=request.POST or None)
+
+    ctx = {'show_admin': False}
+
     if request.method == 'POST':
-        if form.is_valid():
-            user = form.get_user()
-            login(request, user)
-            if user.is_admin_role():
+        login_type = request.POST.get('login_type', 'client')
+
+        if login_type == 'client':
+            username = request.POST.get('username', '').strip()
+            try:
+                user = User.objects.get(username=username)
+                if not user.is_active:
+                    ctx['form_client_error'] = "Ce compte est désactivé. Contactez EDEN GROUP."
+                    ctx['client_username'] = username
+                elif not user.is_client_role():
+                    ctx['form_client_error'] = "Identifiant introuvable. Contactez EDEN GROUP."
+                    ctx['client_username'] = username
+                else:
+                    login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+                    return redirect('dashboard')
+            except User.DoesNotExist:
+                ctx['form_client_error'] = "Identifiant introuvable. Contactez EDEN GROUP."
+                ctx['client_username'] = username
+
+        elif login_type == 'admin':
+            username = request.POST.get('username', '').strip()
+            password = request.POST.get('password', '').strip()
+            user = authenticate(request, username=username, password=password)
+            if user is not None and user.is_active and user.is_admin_role():
+                login(request, user)
                 return redirect('admin_dashboard')
-            return redirect('dashboard')
-        else:
-            messages.error(request, "Identifiants incorrects.")
-    return render(request, 'users/login.html', {'form': form})
+            else:
+                ctx['form_admin_error'] = "Identifiant ou mot de passe incorrect."
+                ctx['admin_username'] = username
+                ctx['show_admin'] = True
+
+    return render(request, 'users/login.html', ctx)
 
 
 def logout_view(request):

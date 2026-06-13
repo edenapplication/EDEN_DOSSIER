@@ -2,40 +2,89 @@
 {% block title %}{{ action }} un dossier — Admin{% endblock %}
 {% block breadcrumb %}<a href="{% url 'admin_dossiers' %}">Dossiers</a> › {{ action }}{% endblock %}
 
+{% block extra_css %}
+<style>
+.client-search-wrap{position:relative}
+.client-search-input{width:100%;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 13px;font-size:14px;font-family:inherit;color:var(--text);transition:border-color .2s;outline:none}
+.client-search-input:focus{border-color:var(--navy)}
+.client-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid var(--navy);border-radius:var(--radius-sm);z-index:200;max-height:240px;overflow-y:auto;box-shadow:0 8px 32px rgba(11,31,58,.12);display:none}
+.client-dropdown.open{display:block}
+.client-option{padding:11px 14px;cursor:pointer;font-size:13.5px;color:var(--text);transition:background .15s;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.client-option:last-child{border-bottom:none}
+.client-option:hover,.client-option.highlighted{background:rgba(11,31,58,.05)}
+.client-option-avatar{width:28px;height:28px;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
+.client-option-name{font-weight:500;color:var(--navy)}
+.client-option-sub{font-size:11px;color:var(--muted)}
+.client-selected-badge{display:none;align-items:center;gap:10px;padding:10px 14px;background:rgba(11,31,58,.04);border:1.5px solid var(--navy);border-radius:var(--radius-sm);margin-top:8px}
+.client-selected-badge.show{display:flex}
+.client-clear{margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px;transition:color .2s}
+.client-clear:hover{color:var(--red)}
+.no-results{padding:16px;text-align:center;color:var(--muted);font-size:13px}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
   <div><h1 class="page-title">{{ action }} un dossier</h1><p class="page-sub">La référence est générée automatiquement (EDG-YYYYMMDD-000X)</p></div>
 </div>
 <div style="max-width:720px">
-  <form method="post" enctype="multipart/form-data">
+  <form method="post" enctype="multipart/form-data" id="dossierForm">
     {% csrf_token %}
     <div class="form-section">
       <div class="form-section-title">Informations principales</div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Client *</label>
-          <select name="client" class="form-control" required>
-            <option value="">-- Sélectionner un client --</option>
+
+      <!-- CLIENT AVEC RECHERCHE DYNAMIQUE -->
+      <div class="form-group">
+        <label class="form-label">Client *</label>
+        <div class="client-search-wrap">
+          <input
+            type="text"
+            class="client-search-input"
+            id="clientSearchInput"
+            placeholder="Tapez le nom, prénom ou identifiant du client..."
+            autocomplete="off"
+            onkeydown="handleClientKey(event)">
+          <div class="client-dropdown" id="clientDropdown">
             {% for c in clients %}
-            <option value="{{ c.pk }}" {% if dossier.client_id == c.pk %}selected{% endif %}>
-              {{ c.get_full_name|default:c.username }}
-            </option>
+            <div class="client-option"
+              data-pk="{{ c.pk }}"
+              data-name="{{ c.get_full_name|default:c.username }}"
+              data-username="{{ c.username }}"
+              data-initials="{{ c.get_initials }}"
+              data-search="{{ c.get_full_name|lower|default:'' }} {{ c.username|lower }} {{ c.email|lower }} {{ c.phone|lower }}"
+              onclick="selectClient(this)">
+              <div class="client-option-avatar">{{ c.get_initials }}</div>
+              <div>
+                <div class="client-option-name">{{ c.get_full_name|default:c.username }}</div>
+                <div class="client-option-sub">@{{ c.username }}{% if c.phone %} · {{ c.phone }}{% endif %}</div>
+              </div>
+            </div>
             {% endfor %}
-          </select>
+          </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Intitulé *</label>
-          <select name="intitule" class="form-control" required>
-            <option value="">-- Sélectionner un intitulé --</option>
-            {% for i in intitules %}
-            <option value="{{ i.pk }}" {% if dossier.intitule_id == i.pk %}selected{% endif %}>{{ i.name }}</option>
-            {% endfor %}
-          </select>
-          <span class="form-hint">
-            Pas d'intitulé ? <a href="{% url 'admin_intitule_create' %}" style="color:var(--red)" target="_blank">Créer un intitulé →</a>
-          </span>
+        <input type="hidden" name="client" id="clientHidden" required>
+        <div class="client-selected-badge" id="clientSelectedBadge">
+          <div class="client-option-avatar" id="clientSelectedAvatar" style="width:28px;height:28px;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600"></div>
+          <div>
+            <div style="font-weight:600;font-size:14px;color:var(--navy)" id="clientSelectedName"></div>
+            <div style="font-size:12px;color:var(--muted)" id="clientSelectedSub"></div>
+          </div>
+          <button type="button" class="client-clear" onclick="clearClient()" title="Changer de client">✕</button>
         </div>
+        <span class="form-hint" id="clientHint">Commencez à taper pour filtrer les clients</span>
       </div>
+
+      <div class="form-group">
+        <label class="form-label">Intitulé *</label>
+        <select name="intitule" class="form-control" required>
+          <option value="">-- Sélectionner un intitulé --</option>
+          {% for i in intitules %}
+          <option value="{{ i.pk }}" {% if dossier.intitule_id == i.pk %}selected{% endif %}>{{ i.name }}</option>
+          {% endfor %}
+        </select>
+        <span class="form-hint"><a href="{% url 'admin_intitule_create' %}" style="color:var(--red)" target="_blank">+ Créer un intitulé</a></span>
+      </div>
+
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Superficie (m²)</label>
@@ -47,11 +96,13 @@
           <span class="form-hint">Génère la référence automatiquement</span>
         </div>
       </div>
+
       <div class="form-group">
         <label class="form-label">Notes internes</label>
         <textarea name="description" class="form-control" rows="3" placeholder="Notes internes...">{{ dossier.description|default:'' }}</textarea>
       </div>
     </div>
+
     <div class="form-section">
       <div class="form-section-title">Photo du dossier</div>
       {% if dossier.photo %}
@@ -63,10 +114,139 @@
         <span class="form-hint">Visible dans l'espace client en arrière-plan</span>
       </div>
     </div>
+
     <div style="display:flex;gap:12px">
-      <button type="submit" class="btn btn-primary">{{ action }} le dossier →</button>
+      <button type="submit" class="btn btn-primary" onclick="return validateForm()">{{ action }} le dossier →</button>
       <a href="{% url 'admin_dossiers' %}" class="btn btn-outline">Annuler</a>
     </div>
   </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const searchInput = document.getElementById('clientSearchInput');
+const dropdown = document.getElementById('clientDropdown');
+const hiddenInput = document.getElementById('clientHidden');
+const badge = document.getElementById('clientSelectedBadge');
+const hint = document.getElementById('clientHint');
+const allOptions = Array.from(dropdown.querySelectorAll('.client-option'));
+let highlightedIndex = -1;
+
+searchInput.addEventListener('focus', ()=>{
+  if(!hiddenInput.value){
+    showDropdown();
+    filterOptions('');
+  }
+});
+
+searchInput.addEventListener('input', ()=>{
+  hiddenInput.value = '';
+  badge.classList.remove('show');
+  searchInput.style.display = 'block';
+  hint.style.display = '';
+  filterOptions(searchInput.value);
+  showDropdown();
+});
+
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('.client-search-wrap')){
+    closeDropdown();
+  }
+});
+
+function filterOptions(query){
+  const q = query.toLowerCase().trim();
+  let visibleCount = 0;
+  highlightedIndex = -1;
+  allOptions.forEach(opt=>{
+    const match = !q || opt.dataset.search.includes(q);
+    opt.style.display = match ? '' : 'none';
+    opt.classList.remove('highlighted');
+    if(match) visibleCount++;
+  });
+  let noRes = dropdown.querySelector('.no-results');
+  if(visibleCount === 0){
+    if(!noRes){
+      noRes = document.createElement('div');
+      noRes.className='no-results';
+      noRes.textContent='Aucun client trouvé';
+      dropdown.appendChild(noRes);
+    }
+    noRes.style.display='';
+  } else {
+    if(noRes) noRes.style.display='none';
+  }
+}
+
+function showDropdown(){
+  dropdown.classList.add('open');
+}
+
+function closeDropdown(){
+  dropdown.classList.remove('open');
+  highlightedIndex = -1;
+}
+
+function selectClient(opt){
+  hiddenInput.value = opt.dataset.pk;
+  searchInput.style.display = 'none';
+  badge.classList.add('show');
+  document.getElementById('clientSelectedAvatar').textContent = opt.dataset.initials;
+  document.getElementById('clientSelectedName').textContent = opt.dataset.name;
+  document.getElementById('clientSelectedSub').textContent = '@' + opt.dataset.username;
+  hint.style.display = 'none';
+  closeDropdown();
+}
+
+function clearClient(){
+  hiddenInput.value = '';
+  searchInput.value = '';
+  searchInput.style.display = 'block';
+  badge.classList.remove('show');
+  hint.style.display = '';
+  filterOptions('');
+  searchInput.focus();
+}
+
+function handleClientKey(e){
+  const visible = allOptions.filter(o=>o.style.display !== 'none');
+  if(!dropdown.classList.contains('open')) return;
+  if(e.key === 'ArrowDown'){
+    e.preventDefault();
+    if(highlightedIndex < visible.length - 1) highlightedIndex++;
+    updateHighlight(visible);
+  } else if(e.key === 'ArrowUp'){
+    e.preventDefault();
+    if(highlightedIndex > 0) highlightedIndex--;
+    updateHighlight(visible);
+  } else if(e.key === 'Enter'){
+    e.preventDefault();
+    if(highlightedIndex >= 0 && visible[highlightedIndex]){
+      selectClient(visible[highlightedIndex]);
+    }
+  } else if(e.key === 'Escape'){
+    closeDropdown();
+  }
+}
+
+function updateHighlight(visible){
+  visible.forEach((o,i)=>{
+    o.classList.toggle('highlighted', i === highlightedIndex);
+    if(i === highlightedIndex) o.scrollIntoView({block:'nearest'});
+  });
+}
+
+function validateForm(){
+  if(!hiddenInput.value){
+    searchInput.style.borderColor = 'var(--red)';
+    searchInput.focus();
+    searchInput.style.display = 'block';
+    showDropdown();
+    alert('Veuillez sélectionner un client.');
+    return false;
+  }
+  return true;
+}
+</script>
 {% endblock %}
