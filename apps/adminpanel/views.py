@@ -198,15 +198,17 @@ def admin_client_create(request):
             messages.error(request, "Cet identifiant existe déjà.")
             return render(request, 'adminpanel/clients/form.html', {'action': 'Créer', 'roles': User.ROLE_CHOICES})
         u = User.objects.create_user(
-            username=username, password=password,
+            username=username,
+            password=password,
             first_name=request.POST.get('first_name', ''),
             last_name=request.POST.get('last_name', ''),
             email=request.POST.get('email', ''),
             phone=request.POST.get('phone', ''),
             city=request.POST.get('city', ''),
             role=role,
+            sexe=request.POST.get('sexe', 'masculin'),
         )
-        if role == 'admin':
+        if role in ('admin', 'commercial'):
             u.is_staff = True
             u.save()
         messages.success(request, f"Utilisateur créé — Identifiant : {username} | Mot de passe : {password}")
@@ -224,6 +226,7 @@ def admin_client_edit(request, pk):
         u.phone = request.POST.get('phone', '')
         u.city = request.POST.get('city', '')
         u.is_active = request.POST.get('is_active') == 'on'
+        u.sexe = request.POST.get('sexe', 'masculin')
         new_role = request.POST.get('role', u.role)
         u.role = new_role
         u.is_staff = new_role in ('admin', 'commercial')
@@ -233,7 +236,6 @@ def admin_client_edit(request, pk):
         messages.success(request, "Utilisateur modifié.")
         return redirect('admin_clients')
     return render(request, 'adminpanel/clients/form.html', {'client': u, 'action': 'Modifier', 'roles': User.ROLE_CHOICES})
-
 
 @admin_required
 def admin_client_delete(request, pk):

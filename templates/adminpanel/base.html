@@ -130,9 +130,11 @@ button{cursor:pointer;font-family:inherit}
   <nav class="sidebar-nav">
 
     <div class="sidebar-section">Tableau de bord</div>
+    {% if request.user.role == 'admin' %}
     <a href="{% url 'admin_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
       <span class="sidebar-icon">⊞</span> Vue d'ensemble
     </a>
+    {% endif %}
 
     <div class="sidebar-section">Contenu du site</div>
     <a href="{% url 'admin_properties' %}" class="sidebar-link {% if 'propert' in request.resolver_match.url_name %}active{% endif %}">
@@ -147,14 +149,16 @@ button{cursor:pointer;font-family:inherit}
       <span class="sidebar-icon">👤</span> Utilisateurs
     </a>
     <a href="{% url 'admin_intitules' %}" class="sidebar-link {% if 'intitule' in request.resolver_match.url_name %}active{% endif %}">
-      <span class="sidebar-icon">🏷</span> Intitulés dossiers
+      <span class="sidebar-icon">🏷</span> Ajouter un site
     </a>
     <a href="{% url 'admin_dossiers' %}" class="sidebar-link {% if 'admin_dossiers' == request.resolver_match.url_name or 'admin_dossier_detail' == request.resolver_match.url_name or 'admin_dossier_create' == request.resolver_match.url_name %}active{% endif %}">
       <span class="sidebar-icon">📁</span> Dossiers
     </a>
+    {% if request.user.role == 'admin' %}
     <a href="{% url 'admin_etapes_globales' %}" class="sidebar-link {% if 'etape' in request.resolver_match.url_name %}active{% endif %}">
       <span class="sidebar-icon">✓</span> Étapes des dossiers
     </a>
+    {% endif %}
 
     {% if request.user.role == 'admin' %}
     <a href="{% url 'admin_dossiers_alerte' %}" class="sidebar-link {% if 'alerte' in request.resolver_match.url_name %}active{% endif %}">

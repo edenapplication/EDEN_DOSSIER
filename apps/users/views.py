@@ -24,25 +24,30 @@ def login_view(request):
             try:
                 user = User.objects.get(username=username)
                 if not user.is_active:
-                    ctx['form_client_error'] = "Ce compte est désactivé. Contactez EDEN GROUP."
+                    ctx['form_client_error'] = "Ce compte est désactivé. Contactez Eden Group."
                     ctx['client_username'] = username
                 elif not user.is_client_role():
-                    ctx['form_client_error'] = "Identifiant introuvable. Contactez EDEN GROUP."
+                    ctx['form_client_error'] = "Identifiant introuvable. Contactez Eden Group."
                     ctx['client_username'] = username
                 else:
                     login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                     return redirect('dashboard')
             except User.DoesNotExist:
-                ctx['form_client_error'] = "Identifiant introuvable. Contactez EDEN GROUP."
+                ctx['form_client_error'] = "Identifiant introuvable. Contactez Eden Group."
                 ctx['client_username'] = username
 
         elif login_type == 'admin':
             username = request.POST.get('username', '').strip()
             password = request.POST.get('password', '').strip()
             user = authenticate(request, username=username, password=password)
-            if user is not None and user.is_active and user.is_admin_role():
-                login(request, user)
-                return redirect('admin_dashboard')
+            if user is not None and user.is_active:
+                if user.is_admin_role():
+                    login(request, user)
+                    return redirect('admin_dashboard')
+                else:
+                    ctx['form_admin_error'] = "Ce compte n'a pas accès à l'administration."
+                    ctx['admin_username'] = username
+                    ctx['show_admin'] = True
             else:
                 ctx['form_admin_error'] = "Identifiant ou mot de passe incorrect."
                 ctx['admin_username'] = username

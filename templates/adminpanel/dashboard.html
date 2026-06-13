@@ -60,6 +60,7 @@
   </div>
 </div>
 
+{% if request.user.role == 'admin' %}
 <div class="dash-grid">
   <div>
     <div class="card" style="margin-bottom:20px">
@@ -104,6 +105,7 @@
     </div>
     {% endif %}
   </div>
+{% endif %}
 
   <div style="display:flex;flex-direction:column;gap:20px">
     <div class="card">

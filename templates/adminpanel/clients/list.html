@@ -37,7 +37,7 @@
   <div class="table-wrap">
     <table class="table" id="usersTable">
       <thead>
-        <tr><th>Utilisateur</th><th>Identifiant</th><th>Contact</th><th>Ville</th><th>Rôle</th><th>Statut</th><th>Actions</th></tr>
+        <tr><th>Utilisateur</th><th>Identifiant</th><th>Contact</th><th>Ville</th><th>Rôle</th><th>Statut</th>{% if request.user.role == 'admin' %}<th>Actions</th>{% endif %}</tr>
       </thead>
       <tbody>
         {% for c in clients %}
@@ -61,11 +61,13 @@
           </td>
           <td><span class="badge {% if c.is_active %}badge-green{% else %}badge-red{% endif %}">{% if c.is_active %}Actif{% else %}Inactif{% endif %}</span></td>
           <td style="white-space:nowrap">
+        {% if request.user.role == 'admin' %}
             <a href="{% url 'admin_client_edit' c.pk %}" class="btn btn-outline btn-xs">Modifier</a>
             {% if c.pk != request.user.pk %}
             <form method="post" action="{% url 'admin_client_delete' c.pk %}" style="display:inline" onsubmit="return confirm('Supprimer cet utilisateur ?')">
               {% csrf_token %}<button type="submit" class="btn btn-danger btn-xs">✕</button>
             </form>
+        {% endif %}
             {% endif %}
           </td>
         </tr>

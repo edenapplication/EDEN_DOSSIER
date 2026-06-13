@@ -158,14 +158,29 @@
               {{ current.name }}
             </strong>
             <div class="current-msg">
-              Bonjour {{ user.first_name|default:user.username }},
-              {% if current.description %}
-              <div class="etape-desc-html">{{ current.description|safe }}</div>
-              {% endif %}
-            </div>
+    {% if user.sexe == 'masculin' %}
+        Bonjour Monsieur {{ user.first_name|default:user.username }},
+    {% elif user.sexe == 'feminin' %}
+        Bonjour Madame {{ user.first_name|default:user.username }},
+    {% else %}
+        Bonjour Cher Client ,
+    {% endif %}
+
+    {% if current.description %}
+        <div class="etape-desc-html">{{ current.description|safe }}</div>
+    {% endif %}
+</div>
             <br>
             <div class="dossier-message">
-              {{ user.first_name|default:user.username }}, La sécurisation d'un patrimoine foncier exige l'intervention
+              {% if user.sexe == 'masculin' %}
+        Monsieur {{ user.first_name|default:user.username }},
+    {% elif user.sexe == 'feminin' %}
+        Madame {{ user.first_name|default:user.username }},
+    {% else %}
+       Cher Client ,
+    {% endif %}
+
+           La sécurisation d'un patrimoine foncier exige l'intervention
               de plusieurs experts et administrations.<br><br>
               Chaque étape de traitement est essentielle pour garantir la conformité et la sécurité juridique de votre dossier.
               <br>
