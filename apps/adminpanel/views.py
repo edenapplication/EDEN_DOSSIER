@@ -13,15 +13,9 @@ from apps.chatbot.models import ChatbotKnowledge, ChatbotUnknown
 import csv
 import io
 import datetime
-
-try:
-    import openpyxl
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    XLSX_AVAILABLE = True
-except ImportError:
-    XLSX_AVAILABLE = False
-
+import openpyxl
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
 
 def _xl_val(cell):
     if cell is None:
