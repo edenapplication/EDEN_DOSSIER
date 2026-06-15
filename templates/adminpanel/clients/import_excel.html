@@ -1,0 +1,99 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}Importer Excel — Admin{% endblock %}
+{% block breadcrumb %}<a href="{% url 'admin_clients' %}">Utilisateurs</a> › Importer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Importer clients & dossiers</h1><p class="page-sub">Un seul fichier Excel, une seule feuille pour tout</p></div>
+</div>
+
+<div style="max-width:720px">
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header"><span class="card-title">📋 Structure de la feuille Excel</span></div>
+    <div class="card-body">
+      <div style="overflow-x:auto;margin-bottom:16px">
+        <table style="width:100%;font-size:12px;border-collapse:collapse;min-width:600px">
+          <thead>
+            <tr style="background:#0B1F3A;color:#fff">
+              <th style="padding:8px 10px;text-align:left;border-radius:4px 0 0 4px">Identifiant*</th>
+              <th style="padding:8px 10px;text-align:left">Mot de passe*</th>
+              <th style="padding:8px 10px;text-align:left">Nom</th>
+              <th style="padding:8px 10px;text-align:left">Email</th>
+              <th style="padding:8px 10px;text-align:left">Téléphone</th>
+              <th style="padding:8px 10px;text-align:left">Ville</th>
+              <th style="padding:8px 10px;text-align:left">Sexe</th>
+              <th style="padding:8px 10px;text-align:left">Rôle</th>
+              <th style="padding:8px 10px;text-align:left">Actif</th>
+              <th style="padding:8px 10px;text-align:left">Intitulé dossier</th>
+              <th style="padding:8px 10px;text-align:left">Superficie</th>
+              <th style="padding:8px 10px;text-align:left">Date paiement</th>
+              <th style="padding:8px 10px;text-align:left;border-radius:0 4px 4px 0">Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background:#f8f7f5">
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border);font-weight:600;color:var(--navy)">jean.mballa</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border)">pass123</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border)">Mballa Jean</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border)">jean@mail.cm</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border)">+237600…</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border)">Yaoundé</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border)">masculin</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border)">client</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border)">Oui</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--red)">Odza Lot A</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border)">600</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border)">2024-03-15</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border)">Parcelle A12</td>
+            </tr>
+            <tr style="background:#E8F0FE">
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border);font-weight:600;color:var(--navy)">jean.mballa</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--muted)">(vide)</td>
+              <td colspan="7" style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--muted);font-style:italic">← infos client ignorées car déjà créé →</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--red)">Bastos Lot B</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border)">400</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border)">2024-04-01</td>
+              <td style="padding:7px 10px;border-bottom:1px solid var(--border)"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:14px">
+          <div style="font-weight:600;color:#065f46;font-size:13px;margin-bottom:6px">✓ Client existant</div>
+          <div style="font-size:12px;color:#065f46;line-height:1.6">L'identifiant est reconnu en base → le dossier est créé et lié au client. Le mot de passe n'est pas requis.</div>
+        </div>
+        <div style="background:rgba(11,31,58,.05);border:1px solid rgba(11,31,58,.15);border-radius:8px;padding:14px">
+          <div style="font-weight:600;color:var(--navy);font-size:13px;margin-bottom:6px">+ Nouveau client</div>
+          <div style="font-size:12px;color:var(--navy);line-height:1.6">L'identifiant est inconnu → le client ET le dossier sont créés. Le mot de passe est obligatoire.</div>
+        </div>
+      </div>
+
+      <div style="font-size:12px;color:var(--muted);line-height:1.8">
+        <strong>Sexe :</strong> masculin / feminin / plusieurs &nbsp;·&nbsp;
+        <strong>Rôle :</strong> client / commercial / admin &nbsp;·&nbsp;
+        <strong>Date :</strong> YYYY-MM-DD ou JJ/MM/AAAA
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">Sélectionner le fichier</div>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label">Fichier Excel (.xlsx) *</label>
+        <input type="file" name="excel_file" class="form-control" accept=".xlsx,.xls" required>
+        <span class="form-hint">Utilisez le modèle fourni pour garantir un import sans erreur.</span>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:8px">
+        <button type="submit" class="btn btn-primary">⬆ Importer →</button>
+        <a href="{% url 'admin_clients_template' %}" class="btn btn-outline">⬇ Télécharger le modèle</a>
+        <a href="{% url 'admin_clients' %}" class="btn btn-outline">Annuler</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

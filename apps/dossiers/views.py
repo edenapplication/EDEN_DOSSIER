@@ -1,6 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from apps.properties.models import PropertyImage
 from .models import Dossier
 
 
@@ -19,9 +18,18 @@ def dossier_detail(request, pk):
     dossier = get_object_or_404(Dossier, pk=pk, client=request.user)
     dossier.appliquer_cochages_automatiques()
 
+    property_images = []
+    if dossier.photo:
+        property_images = [{'url': dossier.photo.url, 'is_raw': True}]
+    elif dossier.intitule and dossier.intitule.image:
+        property_images = [{'url': dossier.intitule.image.url, 'is_raw': True}]
+
+    salutation = request.user.get_salutation()
+
     return render(request, 'dossiers/detail.html', {
         'dossier': dossier,
         'etapes_technique': dossier.get_etapes_technique(),
         'etapes_morcellement': dossier.get_etapes_morcellement(),
-        
+        'property_images': property_images,
+        'salutation': salutation,
     })

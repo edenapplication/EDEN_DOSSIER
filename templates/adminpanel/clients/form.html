@@ -1,10 +1,9 @@
 {% extends 'adminpanel/base.html' %}
 {% block title %}{{ action }} utilisateur — Admin{% endblock %}
 {% block breadcrumb %}<a href="{% url 'admin_clients' %}">Utilisateurs</a> › {{ action }}{% endblock %}
-
 {% block content %}
 <div class="page-header"><div><h1 class="page-title">{{ action }} un utilisateur</h1></div></div>
-<div style="max-width:640px">
+<div style="max-width:620px">
   <form method="post">
     {% csrf_token %}
     <div class="form-section">
@@ -16,14 +15,13 @@
           <option value="commercial" {% if client.role == 'commercial' %}selected{% endif %}>Commercial</option>
           <option value="admin" {% if client.role == 'admin' %}selected{% endif %}>Administrateur</option>
         </select>
-        <span class="form-hint">Admin et Commercial ont accès au panneau. Le Commercial ne peut pas gérer les dossiers.</span>
+        <span class="form-hint">Admin et Commercial ont accès au panneau. Le Commercial ne gère pas les dossiers.</span>
       </div>
       {% if not client %}
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Identifiant (login) *</label>
           <input type="text" name="username" class="form-control" required placeholder="jean.mballa">
-          <span class="form-hint">Utilisé pour la connexion</span>
         </div>
         <div class="form-group">
           <label class="form-label">Mot de passe *</label>
@@ -38,21 +36,12 @@
       {% endif %}
       <label class="form-check"><input type="checkbox" name="is_active" {% if client.is_active or not client %}checked{% endif %}> Compte actif</label>
     </div>
-
     <div class="form-section">
       <div class="form-section-title">Informations personnelles</div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Prénom</label><input type="text" name="first_name" class="form-control" value="{{ client.first_name|default:'' }}"></div>
-        <div class="form-group"><label class="form-label">Nom</label><input type="text" name="last_name" class="form-control" value="{{ client.last_name|default:'' }}"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Email</label><input type="email" name="email" class="form-control" value="{{ client.email|default:'' }}"></div>
-        <div class="form-group"><label class="form-label">Téléphone</label><input type="text" name="phone" class="form-control" value="{{ client.phone|default:'' }}" placeholder="+237 6XX XXX XXX"></div>
-      </div>
-      <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Ville</label>
-          <input type="text" name="city" class="form-control" value="{{ client.city|default:'' }}">
+          <label class="form-label">Nom</label>
+          <input type="text" name="last_name" class="form-control" value="{{ client.last_name|default:'' }}">
         </div>
         <div class="form-group">
           <label class="form-label">Sexe</label>
@@ -61,11 +50,14 @@
             <option value="feminin" {% if client.sexe == 'feminin' %}selected{% endif %}>Féminin</option>
             <option value="plusieurs" {% if client.sexe == 'plusieurs' %}selected{% endif %}>Plusieurs</option>
           </select>
-          <span class="form-hint">Détermine la civilité affichée dans l'espace client</span>
         </div>
       </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Email</label><input type="email" name="email" class="form-control" value="{{ client.email|default:'' }}"></div>
+        <div class="form-group"><label class="form-label">Téléphone</label><input type="text" name="phone" class="form-control" value="{{ client.phone|default:'' }}" placeholder="+237 6XX XXX XXX"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Ville</label><input type="text" name="city" class="form-control" value="{{ client.city|default:'' }}"></div>
     </div>
-
     <div style="display:flex;gap:12px">
       <button type="submit" class="btn btn-primary">{{ action }} →</button>
       <a href="{% url 'admin_clients' %}" class="btn btn-outline">Annuler</a>

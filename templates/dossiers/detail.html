@@ -91,10 +91,6 @@
   <em style="font-size:0.75em;color:rgba(255,255,255,.7)">{{ dossier.get_title }}</em>
 </div>
       <div class="banner-details">
-        <div class="banner-detail-item">
-          <span class="banner-detail-label">Référence</span>
-          <span class="banner-detail-value">{{ dossier.reference }}</span>
-        </div>
         {% if dossier.superficie %}
         <div class="banner-detail-item">
           <span class="banner-detail-label">Superficie</span>
@@ -128,8 +124,8 @@
         </div>
         <div style="padding:24px">
           <div class="wf-tabs">
-            <button class="wf-tab active" onclick="switchWf(this,'tech')">⚙ Technique</button>
-            <button class="wf-tab" onclick="switchWf(this,'morc')">🗺 Morcellement</button>
+            <button class="wf-tab active" onclick="switchWf(this,'tech')">⚙ Dossier Technique</button>
+            <button class="wf-tab" onclick="switchWf(this,'morc')">🗺 Titre Foncier de Morcellement</button>
           </div>
 
           <!-- TECHNIQUE -->
@@ -177,7 +173,7 @@
     {% elif user.sexe == 'feminin' %}
         Madame {{ user.first_name|default:user.username }},
     {% else %}
-       Cher Client ,
+       Chers Clients ,
     {% endif %}
 
            La sécurisation d'un patrimoine foncier exige l'intervention
@@ -221,15 +217,28 @@
             <strong style="color:#C1121F;font-size:20px;font-weight:700;display:block;margin-bottom:10px">
               {{ current.name }}
             </strong>
-            <div class="current-msg">
-              Bonjour {{ user.first_name|default:user.username }},
-              {% if current.description %}
-              <div class="etape-desc-html">{{ current.description|safe }}</div>
-              {% endif %}
-            </div>
+             <div class="current-msg">
+    {% if user.sexe == 'masculin' %}
+        Bonjour Monsieur {{ user.first_name|default:user.username }},
+    {% elif user.sexe == 'feminin' %}
+        Bonjour Madame {{ user.first_name|default:user.username }},
+    {% else %}
+        Bonjour Chers Clients ,
+    {% endif %}
+
+    {% if current.description %}
+        <div class="etape-desc-html">{{ current.description|safe }}</div>
+    {% endif %}
+</div>
             <br>
             <div class="dossier-message">
-              {{ user.first_name|default:user.username }}, La sécurisation d'un patrimoine foncier exige l'intervention
+              {% if user.sexe == 'masculin' %}
+        Monsieur {{ user.first_name|default:user.username }},
+    {% elif user.sexe == 'feminin' %}
+        Madame {{ user.first_name|default:user.username }},
+    {% else %}
+       Chers Clients ,
+    {% endif %}, La sécurisation d'un patrimoine foncier exige l'intervention
               de plusieurs experts et administrations.<br><br>
               Chaque étape de traitement est essentielle pour garantir la conformité et la sécurité juridique de votre dossier.
               <br>

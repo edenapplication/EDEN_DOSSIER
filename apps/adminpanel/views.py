@@ -11,8 +11,25 @@ from apps.dossiers.models import Dossier, EtapeGlobale, EtapeCochee, DossierHist
 from apps.reservations.models import Reservation
 from apps.chatbot.models import ChatbotKnowledge, ChatbotUnknown
 import csv
-import datetime
 import io
+import datetime
+
+try:
+    import openpyxl
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    XLSX_AVAILABLE = True
+except ImportError:
+    XLSX_AVAILABLE = False
+
+
+def _xl_val(cell):
+    if cell is None:
+        return ''
+    val = cell.value
+    if val is None:
+        return ''
+    return str(val).strip()
 
 
 # ── DASHBOARD ──
@@ -137,17 +154,19 @@ def admin_promotion_delete(request, pk):
 # ── INTITULÉS ──
 @admin_required
 def admin_intitules(request):
-    intitules = IntituleDossier.objects.all()
-    return render(request, 'adminpanel/intitules/list.html', {'intitules': intitules})
+    return render(request, 'adminpanel/intitules/list.html', {'intitules': IntituleDossier.objects.all()})
 
 
 @admin_required
 def admin_intitule_create(request):
     if request.method == 'POST':
-        IntituleDossier.objects.create(
+        obj = IntituleDossier(
             name=request.POST.get('name'),
             description=request.POST.get('description', '')
         )
+        if request.FILES.get('image'):
+            obj.image = request.FILES['image']
+        obj.save()
         messages.success(request, "Intitulé créé.")
         return redirect('admin_intitules')
     return render(request, 'adminpanel/intitules/form.html', {'action': 'Créer'})
@@ -159,6 +178,8 @@ def admin_intitule_edit(request, pk):
     if request.method == 'POST':
         obj.name = request.POST.get('name')
         obj.description = request.POST.get('description', '')
+        if request.FILES.get('image'):
+            obj.image = request.FILES['image']
         obj.save()
         messages.success(request, "Intitulé modifié.")
         return redirect('admin_intitules')
@@ -174,7 +195,7 @@ def admin_intitule_delete(request, pk):
     return redirect('admin_intitules')
 
 
-# ── CLIENTS / UTILISATEURS ──
+# ── UTILISATEURS ──
 @admin_required
 def admin_clients(request):
     role_filter = request.GET.get('role', '')
@@ -198,9 +219,7 @@ def admin_client_create(request):
             messages.error(request, "Cet identifiant existe déjà.")
             return render(request, 'adminpanel/clients/form.html', {'action': 'Créer', 'roles': User.ROLE_CHOICES})
         u = User.objects.create_user(
-            username=username,
-            password=password,
-            first_name=request.POST.get('first_name', ''),
+            username=username, password=password,
             last_name=request.POST.get('last_name', ''),
             email=request.POST.get('email', ''),
             phone=request.POST.get('phone', ''),
@@ -220,7 +239,6 @@ def admin_client_create(request):
 def admin_client_edit(request, pk):
     u = get_object_or_404(User, pk=pk)
     if request.method == 'POST':
-        u.first_name = request.POST.get('first_name', '')
         u.last_name = request.POST.get('last_name', '')
         u.email = request.POST.get('email', '')
         u.phone = request.POST.get('phone', '')
@@ -237,6 +255,7 @@ def admin_client_edit(request, pk):
         return redirect('admin_clients')
     return render(request, 'adminpanel/clients/form.html', {'client': u, 'action': 'Modifier', 'roles': User.ROLE_CHOICES})
 
+
 @admin_required
 def admin_client_delete(request, pk):
     u = get_object_or_404(User, pk=pk)
@@ -248,70 +267,291 @@ def admin_client_delete(request, pk):
 
 @admin_required
 def admin_clients_export(request):
-    role_filter = request.GET.get('role', '')
-    users = User.objects.all().order_by('role', 'last_name')
-    if role_filter:
-        users = users.filter(role=role_filter)
-    response = HttpResponse(content_type='text/csv; charset=utf-8')
-    response['Content-Disposition'] = 'attachment; filename="utilisateurs_eden.csv"'
-    response.write('\ufeff')
-    writer = csv.writer(response, delimiter=';')
-    writer.writerow(['Identifiant', 'Prénom', 'Nom', 'Email', 'Téléphone', 'Ville', 'Rôle', 'Actif', 'Date inscription'])
-    for u in users:
-        writer.writerow([u.username, u.first_name, u.last_name, u.email, u.phone, u.city, u.get_role_display(), 'Oui' if u.is_active else 'Non', u.date_joined.strftime('%d/%m/%Y')])
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Clients et Dossiers"
+
+    header_fill = PatternFill("solid", fgColor="0B1F3A")
+    header_font = Font(bold=True, color="FFFFFF")
+    headers = [
+        'Identifiant*', 'Mot de passe*', 'Nom', 'Email',
+        'Téléphone', 'Ville', 'Sexe', 'Rôle', 'Actif',
+        'Intitulé dossier*', 'Superficie (m²)', 'Date paiement (YYYY-MM-DD)', 'Notes dossier'
+    ]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    ws.row_dimensions[1].height = 22
+
+    clients = User.objects.filter(role='client').order_by('last_name').prefetch_related('dossiers__intitule')
+    for u in clients:
+        dossiers = list(u.dossiers.all())
+        if dossiers:
+            for d in dossiers:
+                ws.append([
+                    u.username,
+                    '(non exporté)',
+                    u.last_name,
+                    u.email,
+                    u.phone,
+                    u.city,
+                    u.sexe,
+                    u.role,
+                    'Oui' if u.is_active else 'Non',
+                    d.intitule.name if d.intitule else '',
+                    float(d.superficie) if d.superficie else '',
+                    d.date_paiement.strftime('%Y-%m-%d') if d.date_paiement else '',
+                    d.description or '',
+                ])
+        else:
+            ws.append([
+                u.username, '(non exporté)', u.last_name,
+                u.email, u.phone, u.city, u.sexe, u.role,
+                'Oui' if u.is_active else 'Non',
+                '', '', '', ''
+            ])
+
+    col_widths = [18, 18, 20, 24, 18, 16, 12, 14, 8, 22, 14, 22, 24]
+    for i, w in enumerate(col_widths, 1):
+        ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
+
+    ws2 = wb.create_sheet("Instructions")
+    ws2['A1'] = "INSTRUCTIONS D'IMPORT / EXPORT"
+    ws2['A1'].font = Font(bold=True, size=13, color="C1121F")
+    lignes = [
+        ("Une seule feuille", "Toutes les données clients ET dossiers sont sur la feuille 'Clients et Dossiers'"),
+        ("Colonnes 1-9", "Informations du client : Identifiant*, Mot de passe*, Nom, Email, Téléphone, Ville, Sexe, Rôle, Actif"),
+        ("Colonnes 10-13", "Informations du dossier : Intitulé*, Superficie, Date paiement, Notes"),
+        ("Client existant", "Si l'identifiant existe déjà en base → le dossier est créé et lié au client existant"),
+        ("Nouveau client", "Si l'identifiant est nouveau → le client ET le dossier sont créés"),
+        ("Plusieurs dossiers", "Répétez l'identifiant du client sur plusieurs lignes avec des intitulés différents"),
+        ("Pas de dossier", "Laissez la colonne 'Intitulé dossier' vide pour créer un client sans dossier"),
+        ("Sexe", "masculin / feminin / plusieurs"),
+        ("Rôle", "client / commercial / admin"),
+        ("Date", "Format YYYY-MM-DD (ex: 2024-06-15) ou JJ/MM/AAAA"),
+        ("* = obligatoire", "Identifiant toujours obligatoire. Mot de passe obligatoire seulement si nouveau client."),
+        ("Intitulés existants", ", ".join(IntituleDossier.objects.values_list('name', flat=True)) or "Aucun — sera créé automatiquement"),
+    ]
+    for i, (t, d) in enumerate(lignes, 3):
+        ws2.cell(row=i, column=1, value=t).font = Font(bold=True)
+        ws2.cell(row=i, column=2, value=d)
+    ws2.column_dimensions['A'].width = 22
+    ws2.column_dimensions['B'].width = 72
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="eden_clients_dossiers.xlsx"'
+    wb.save(response)
     return response
 
 
 @admin_required
 def admin_clients_import(request):
-    if request.method == 'POST' and request.FILES.get('csv_file'):
-        csv_file = request.FILES['csv_file']
-        decoded = csv_file.read().decode('utf-8-sig')
-        reader = csv.DictReader(io.StringIO(decoded), delimiter=';')
-        created = 0
+    if request.method == 'POST' and request.FILES.get('excel_file'):
+        excel_file = request.FILES['excel_file']
+        try:
+            wb = openpyxl.load_workbook(excel_file, data_only=True)
+        except Exception as e:
+            messages.error(request, f"Fichier invalide : {e}")
+            return redirect('admin_clients_import')
+
+        sheet_name = None
+        for candidate in ['Clients et Dossiers', 'Clients & Dossiers', 'Sheet1', 'Feuil1']:
+            if candidate in wb.sheetnames:
+                sheet_name = candidate
+                break
+        if not sheet_name:
+            sheet_name = wb.sheetnames[0]
+
+        ws = wb[sheet_name]
+        rows = list(ws.iter_rows(min_row=2))
+
+        created_users = 0
+        updated_users = 0
+        created_dossiers = 0
         errors = []
-        for i, row in enumerate(reader, 2):
-            username = row.get('Identifiant', '').strip()
-            password = row.get('Mot de passe', '').strip()
-            role = row.get('Rôle', 'client').strip().lower()
-            if not username or not password:
-                errors.append(f"Ligne {i} : identifiant ou mot de passe manquant")
+        seen_clients = {}
+
+        for i, row in enumerate(rows, 2):
+            def get(idx):
+                return _xl_val(row[idx] if len(row) > idx else None)
+
+            username = get(0)
+            if not username:
                 continue
-            if User.objects.filter(username=username).exists():
-                errors.append(f"Ligne {i} : {username} existe déjà")
+
+            password = get(1)
+            nom = get(2)
+            email = get(3)
+            phone = get(4)
+            city = get(5)
+            sexe_raw = get(6).lower()
+            role_raw = get(7).lower()
+            actif_raw = get(8).lower()
+            intitule_name = get(9)
+            superficie_raw = get(10)
+            date_raw = get(11)
+            description = get(12)
+
+            sexe_map = {'masculin': 'masculin', 'féminin': 'feminin', 'feminin': 'feminin', 'plusieurs': 'plusieurs'}
+            sexe = sexe_map.get(sexe_raw, 'masculin')
+            role_map = {'admin': 'admin', 'administrateur': 'admin', 'commercial': 'commercial', 'client': 'client'}
+            role = role_map.get(role_raw, 'client')
+            is_active = actif_raw not in ('non', 'false', '0', 'no')
+
+            # ── Gestion client ──
+            if username in seen_clients:
+                user = seen_clients[username]
+            else:
+                try:
+                    user = User.objects.get(username=username)
+                    seen_clients[username] = user
+                    updated_users += 1
+                except User.DoesNotExist:
+                    if not password:
+                        errors.append(f"Ligne {i} : mot de passe manquant pour le nouveau client '{username}'")
+                        continue
+                    try:
+                        user = User.objects.create_user(
+                            username=username,
+                            password=password,
+                            last_name=nom,
+                            email=email,
+                            phone=phone,
+                            city=city,
+                            role=role,
+                            sexe=sexe,
+                            is_active=is_active,
+                        )
+                        if role in ('admin', 'commercial'):
+                            user.is_staff = True
+                            user.save()
+                        seen_clients[username] = user
+                        created_users += 1
+                    except Exception as e:
+                        errors.append(f"Ligne {i} : erreur création client '{username}' — {e}")
+                        continue
+
+            # ── Gestion dossier ──
+            if not intitule_name:
                 continue
-            role_map = {'administrateur': 'admin', 'commercial': 'commercial', 'client': 'client', 'admin': 'admin'}
-            role_val = role_map.get(role, 'client')
-            u = User.objects.create_user(
-                username=username, password=password,
-                first_name=row.get('Prénom', '').strip(),
-                last_name=row.get('Nom', '').strip(),
-                email=row.get('Email', '').strip(),
-                phone=row.get('Téléphone', '').strip(),
-                city=row.get('Ville', '').strip(),
-                role=role_val,
-            )
-            if role_val == 'admin':
-                u.is_staff = True
-                u.save()
-            created += 1
-        msg = f"{created} utilisateur(s) importé(s)."
+
+            intitule = IntituleDossier.objects.filter(name__iexact=intitule_name).first()
+            if not intitule:
+                intitule = IntituleDossier.objects.create(name=intitule_name)
+
+            try:
+                superficie = float(superficie_raw) if superficie_raw else None
+            except ValueError:
+                superficie = None
+
+            date_paiement = None
+            if date_raw:
+                for fmt_str in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%Y/%m/%d'):
+                    try:
+                        date_paiement = datetime.datetime.strptime(date_raw, fmt_str).date()
+                        break
+                    except ValueError:
+                        continue
+
+            try:
+                d = Dossier(
+                    client=user,
+                    intitule=intitule,
+                    superficie=superficie,
+                    date_paiement=date_paiement,
+                    description=description,
+                )
+                d.save()
+                d.planifier_cochages_automatiques()
+                DossierHistorique.objects.create(
+                    dossier=d,
+                    message="Dossier créé par import Excel"
+                )
+                created_dossiers += 1
+            except Exception as e:
+                errors.append(f"Ligne {i} : erreur création dossier '{intitule_name}' pour '{username}' — {e}")
+
+        msg = (
+            f"Import terminé : {created_users} client(s) créé(s), "
+            f"{updated_users} client(s) existant(s) reconnu(s), "
+            f"{created_dossiers} dossier(s) créé(s)."
+        )
         if errors:
-            msg += f" {len(errors)} erreur(s) : " + " | ".join(errors[:5])
+            msg += f" {len(errors)} avertissement(s)."
+            for err in errors[:10]:
+                messages.warning(request, err)
         messages.success(request, msg)
         return redirect('admin_clients')
-    return render(request, 'adminpanel/clients/import.html')
+
+    return render(request, 'adminpanel/clients/import_excel.html')
 
 
 @admin_required
 def admin_clients_template(request):
-    response = HttpResponse(content_type='text/csv; charset=utf-8')
-    response['Content-Disposition'] = 'attachment; filename="modele_import_utilisateurs.csv"'
-    response.write('\ufeff')
-    writer = csv.writer(response, delimiter=';')
-    writer.writerow(['Identifiant', 'Mot de passe', 'Prénom', 'Nom', 'Email', 'Téléphone', 'Ville', 'Rôle'])
-    writer.writerow(['jean.dupont', 'motdepasse123', 'Jean', 'Dupont', 'jean@email.com', '+237600000000', 'Yaoundé', 'client'])
-    writer.writerow(['marie.martin', 'motdepasse456', 'Marie', 'Martin', 'marie@email.com', '+237600000001', 'Douala', 'commercial'])
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Clients et Dossiers"
+
+    header_fill = PatternFill("solid", fgColor="0B1F3A")
+    header_font = Font(bold=True, color="FFFFFF")
+    red_fill = PatternFill("solid", fgColor="FFF0F0")
+
+    headers = [
+        'Identifiant*', 'Mot de passe*', 'Nom', 'Email',
+        'Téléphone', 'Ville', 'Sexe', 'Rôle', 'Actif',
+        'Intitulé dossier', 'Superficie (m²)', 'Date paiement (YYYY-MM-DD)', 'Notes dossier'
+    ]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    ws.row_dimensions[1].height = 22
+
+    examples = [
+        ['jean.mballa', 'pass123', 'Mballa Jean', 'jean@mail.cm', '+237600000001', 'Yaoundé', 'masculin', 'client', 'Oui', 'Lotissement Odza', 600, '2024-03-15', 'Parcelle A12'],
+        ['jean.mballa', '', '', '', '', '', '', '', '', 'Parcelle Bastos', 400, '2024-04-01', 'Lot B5'],
+        ['marie.ngo', 'pass456', 'Ngo Marie', 'marie@mail.cm', '+237600000002', 'Douala', 'feminin', 'client', 'Oui', 'Nkolbisson', 800, '2024-05-10', ''],
+        ['paul.biya', 'pass789', 'Biya Paul', '', '+237600000003', 'Yaoundé', 'masculin', 'client', 'Oui', '', '', '', ''],
+    ]
+    note_fill = PatternFill("solid", fgColor="E8F0FE")
+    for row_idx, ex in enumerate(examples, 2):
+        for col_idx, val in enumerate(ex, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            if row_idx == 3:
+                cell.fill = note_fill
+
+    col_widths = [18, 18, 20, 24, 18, 16, 12, 12, 8, 22, 14, 24, 24]
+    for i, w in enumerate(col_widths, 1):
+        ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
+
+    ws2 = wb.create_sheet("Instructions")
+    ws2['A1'] = "GUIDE D'UTILISATION"
+    ws2['A1'].font = Font(bold=True, size=13, color="C1121F")
+    lignes = [
+        ("RÈGLE PRINCIPALE", "Une seule feuille pour tout : clients ET leurs dossiers"),
+        ("Client existant", "Si l'identifiant existe déjà → le dossier est ajouté au client existant (mot de passe ignoré)"),
+        ("Nouveau client", "Si l'identifiant est nouveau → client + dossier créés (mot de passe obligatoire)"),
+        ("Plusieurs dossiers", "Ligne 2 exemple : jean.mballa a 2 dossiers → répéter l'identifiant, laisser les infos client vides"),
+        ("Client sans dossier", "Ligne 4 exemple : paul.biya est créé sans dossier (colonnes 10-13 vides)"),
+        ("Sexe", "masculin / feminin / plusieurs"),
+        ("Rôle", "client / commercial / admin (défaut : client)"),
+        ("Date paiement", "Format YYYY-MM-DD (2024-06-15) ou JJ/MM/AAAA (15/06/2024)"),
+        ("Intitulé", "S'il n'existe pas en base, il sera créé automatiquement"),
+        ("Intitulés existants", ", ".join(IntituleDossier.objects.values_list('name', flat=True)) or "Aucun pour le moment"),
+        ("* Obligatoire", "Identifiant toujours requis. Mot de passe requis seulement pour les nouveaux clients."),
+    ]
+    for i, (t, d) in enumerate(lignes, 3):
+        ws2.cell(row=i, column=1, value=t).font = Font(bold=True)
+        ws2.cell(row=i, column=2, value=d)
+    ws2.column_dimensions['A'].width = 22
+    ws2.column_dimensions['B'].width = 72
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="modele_import_eden.xlsx"'
+    wb.save(response)
     return response
 
 
@@ -345,7 +585,7 @@ def admin_etape_globale_edit(request, pk):
         pct = int(request.POST.get('percentage', 0))
         total_actuel = sum(e.percentage for e in EtapeGlobale.objects.filter(type=etape.type).exclude(pk=pk))
         if total_actuel + pct > 100:
-            messages.error(request, f"Impossible : total dépasserait 100%")
+            messages.error(request, "Impossible : total dépasserait 100%")
             return redirect('admin_etapes_globales')
         etape.name = request.POST.get('name')
         etape.percentage = pct
@@ -382,13 +622,7 @@ def admin_dossier_create(request):
         client = get_object_or_404(User, pk=request.POST.get('client'), role='client')
         intitule_id = request.POST.get('intitule')
         intitule = get_object_or_404(IntituleDossier, pk=intitule_id) if intitule_id else None
-        d = Dossier(
-            client=client,
-            intitule=intitule,
-            description=request.POST.get('description', ''),
-            superficie=request.POST.get('superficie') or None,
-            date_paiement=request.POST.get('date_paiement') or None,
-        )
+        d = Dossier(client=client, intitule=intitule, description=request.POST.get('description', ''), superficie=request.POST.get('superficie') or None, date_paiement=request.POST.get('date_paiement') or None)
         if request.FILES.get('photo'):
             d.photo = request.FILES['photo']
         d.save()
@@ -415,16 +649,10 @@ def admin_dossier_detail(request, pk):
     etapes_tech_list = list(EtapeGlobale.objects.filter(type='technique'))
     etapes_morc_list = list(EtapeGlobale.objects.filter(type='morcellement'))
     return render(request, 'adminpanel/dossiers/detail.html', {
-        'dossier': dossier,
-        'etapes_tech': etapes_tech,
-        'etapes_morc': etapes_morc,
-        'historique': historique,
-        'prog_tech': prog_tech,
-        'prog_morc': prog_morc,
-        'total_tech': total_tech,
-        'total_morc': total_morc,
-        'pct_tech_bar': pct_tech_bar,
-        'pct_morc_bar': pct_morc_bar,
+        'dossier': dossier, 'etapes_tech': etapes_tech, 'etapes_morc': etapes_morc,
+        'historique': historique, 'prog_tech': prog_tech, 'prog_morc': prog_morc,
+        'total_tech': total_tech, 'total_morc': total_morc,
+        'pct_tech_bar': pct_tech_bar, 'pct_morc_bar': pct_morc_bar,
         'current_tech': dossier.get_current_etape_technique(),
         'current_morc': dossier.get_current_etape_morcellement(),
         'morc_locked': not dossier.is_technique_complete(),

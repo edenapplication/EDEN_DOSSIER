@@ -7,8 +7,7 @@
 .editor-toolbar{display:flex;gap:4px;flex-wrap:wrap;padding:8px 10px;background:var(--gray);border:1.5px solid var(--border);border-bottom:none;border-radius:var(--radius-sm) var(--radius-sm) 0 0}
 .editor-btn{background:#fff;border:1px solid var(--border);border-radius:4px;padding:5px 10px;font-size:13px;cursor:pointer;transition:all .2s;min-width:32px;text-align:center;font-family:inherit;color:var(--text)}
 .editor-btn:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
-.editor-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
-.editor-sep{width:1px;background:var(--border);margin:0 4px}
+.editor-sep{width:1px;background:var(--border);margin:0 4px;align-self:stretch}
 .editor-area{min-height:160px;background:#fff;border:1.5px solid var(--border);border-radius:0 0 var(--radius-sm) var(--radius-sm);padding:14px 16px;font-size:14px;line-height:1.8;outline:none;color:var(--text)}
 .editor-area:focus{border-color:var(--navy)}
 .editor-area b,.editor-area strong{font-weight:700}
@@ -18,12 +17,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title">{{ action }} une étape</h1>
-    <p class="page-sub">Cette étape s'applique automatiquement à tous les dossiers.</p>
-  </div>
-</div>
+<div class="page-header"><div><h1 class="page-title">{{ action }} une étape</h1><p class="page-sub">Cette étape s'applique à tous les dossiers.</p></div></div>
 <div style="max-width:620px">
   <form method="post" id="etapeForm">
     {% csrf_token %}
@@ -54,24 +48,24 @@
     </div>
 
     <div class="form-section">
-      <div class="form-section-title">Description (mise en forme disponible)</div>
+      <div class="form-section-title">Description (mise en forme)</div>
       <div class="editor-toolbar">
         <button type="button" class="editor-btn" onclick="fmt('bold')" title="Gras"><b>G</b></button>
         <button type="button" class="editor-btn" onclick="fmt('underline')" title="Souligné"><u>S</u></button>
         <button type="button" class="editor-btn" onclick="fmt('italic')" title="Italique"><em>I</em></button>
         <div class="editor-sep"></div>
-        <button type="button" class="editor-btn" onclick="fmt('justifyLeft')" title="Gauche">⬅</button>
-        <button type="button" class="editor-btn" onclick="fmt('justifyCenter')" title="Centrer">⬛</button>
-        <button type="button" class="editor-btn" onclick="fmt('justifyRight')" title="Droite">➡</button>
+        <button type="button" class="editor-btn" onclick="fmt('justifyLeft')" title="Aligner à gauche">⬅</button>
+        <button type="button" class="editor-btn" onclick="fmt('justifyCenter')" title="Centrer">☰</button>
+        <button type="button" class="editor-btn" onclick="fmt('justifyRight')" title="Aligner à droite">➡</button>
+        <button type="button" class="editor-btn" onclick="fmt('justifyFull')" title="Justifier" style="font-size:11px;font-weight:600">≡</button>
         <div class="editor-sep"></div>
         <button type="button" class="editor-btn" onclick="insertLine()" title="Nouvelle ligne">↵</button>
         <div class="editor-sep"></div>
         <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);cursor:pointer">
-          🎨
-          <input type="color" class="editor-color-input" id="colorPicker" value="#C1121F" onchange="applyColor(this.value)" title="Couleur du texte">
+          🎨<input type="color" class="editor-color-input" id="colorPicker" value="#C1121F" onchange="applyColor(this.value)" title="Couleur">
         </label>
         <div class="editor-sep"></div>
-        <button type="button" class="editor-btn" onclick="clearFmt()" title="Effacer mise en forme" style="font-size:11px">⊘ Effacer</button>
+        <button type="button" class="editor-btn" onclick="clearFmt()" title="Effacer" style="font-size:11px">⊘</button>
       </div>
       <div class="editor-area" id="editorArea" contenteditable="true">{{ etape.description|safe|default:'' }}</div>
       <input type="hidden" name="description" id="descriptionInput">
@@ -79,7 +73,7 @@
     </div>
 
     <div style="display:flex;gap:12px">
-      <button type="submit" class="btn btn-primary" onclick="syncDesc()">{{ action }} →</button>
+      <button type="submit" class="btn btn-primary">{{ action }} →</button>
       <a href="{% url 'admin_etapes_globales' %}" class="btn btn-outline">Annuler</a>
     </div>
   </form>
@@ -88,41 +82,17 @@
 
 {% block extra_js %}
 <script>
-const editor = document.getElementById('editorArea');
-const descInput = document.getElementById('descriptionInput');
-
-function fmt(cmd){
-  editor.focus();
-  document.execCommand(cmd, false, null);
-}
-
-function applyColor(color){
-  editor.focus();
-  document.execCommand('foreColor', false, color);
-}
-
-function insertLine(){
-  editor.focus();
-  document.execCommand('insertHTML', false, '<br>');
-}
-
-function clearFmt(){
-  editor.focus();
-  document.execCommand('removeFormat', false, null);
-}
-
-function syncDesc(){
-  descInput.value = editor.innerHTML;
-}
-
-document.getElementById('etapeForm').addEventListener('submit', function(){
-  syncDesc();
-});
-
-editor.addEventListener('paste', function(e){
+const editor=document.getElementById('editorArea');
+const descInput=document.getElementById('descriptionInput');
+function fmt(cmd){ editor.focus(); document.execCommand(cmd,false,null); }
+function applyColor(color){ editor.focus(); document.execCommand('foreColor',false,color); }
+function insertLine(){ editor.focus(); document.execCommand('insertHTML',false,'<br>'); }
+function clearFmt(){ editor.focus(); document.execCommand('removeFormat',false,null); }
+document.getElementById('etapeForm').addEventListener('submit',function(){ descInput.value=editor.innerHTML; });
+editor.addEventListener('paste',function(e){
   e.preventDefault();
-  const text = (e.clipboardData || window.clipboardData).getData('text/plain');
-  document.execCommand('insertText', false, text);
+  const text=(e.clipboardData||window.clipboardData).getData('text/plain');
+  document.execCommand('insertText',false,text);
 });
 </script>
 {% endblock %}

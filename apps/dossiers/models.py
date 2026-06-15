@@ -7,6 +7,7 @@ import datetime
 class IntituleDossier(models.Model):
     name = models.CharField(max_length=200, verbose_name="Intitulé")
     description = models.TextField(blank=True)
+    image = models.ImageField(upload_to='intitules/', null=True, blank=True, verbose_name="Image de fond")
 
     class Meta:
         verbose_name = "Intitulé de dossier"
@@ -65,6 +66,13 @@ class Dossier(models.Model):
     def get_title(self):
         return self.intitule.name if self.intitule else "Dossier sans intitulé"
 
+    def get_background_image(self):
+        if self.photo:
+            return self.photo.url
+        if self.intitule and self.intitule.image:
+            return self.intitule.image.url
+        return None
+
     def save(self, *args, **kwargs):
         if not self.reference:
             if self.date_paiement and isinstance(self.date_paiement, (datetime.date, datetime.datetime)):
@@ -102,8 +110,7 @@ class Dossier(models.Model):
             etapes = list(EtapeGlobale.objects.filter(type=type_))
             if len(etapes) <= 1:
                 continue
-            etapes_auto = etapes[:-1]
-            for idx, etape in enumerate(etapes_auto):
+            for idx, etape in enumerate(etapes[:-1]):
                 date_coche = self.created_at + datetime.timedelta(weeks=idx + 1)
                 cochee, _ = EtapeCochee.objects.get_or_create(dossier=self, etape=etape)
                 cochee.date_auto_coche = date_coche
@@ -162,15 +169,11 @@ class Dossier(models.Model):
         return "Complet" if self.is_complete() else "En cours"
 
     def get_current_etape_technique(self):
-        cochees = self.etapes_cochees.filter(
-            etape__type='technique', is_done=True
-        ).select_related('etape').order_by('-etape__order')
+        cochees = self.etapes_cochees.filter(etape__type='technique', is_done=True).select_related('etape').order_by('-etape__order')
         return cochees.first().etape if cochees.exists() else None
 
     def get_current_etape_morcellement(self):
-        cochees = self.etapes_cochees.filter(
-            etape__type='morcellement', is_done=True
-        ).select_related('etape').order_by('-etape__order')
+        cochees = self.etapes_cochees.filter(etape__type='morcellement', is_done=True).select_related('etape').order_by('-etape__order')
         return cochees.first().etape if cochees.exists() else None
 
     def get_etapes_technique(self):
@@ -198,8 +201,6 @@ class EtapeCochee(models.Model):
 
     class Meta:
         unique_together = ['dossier', 'etape']
-        verbose_name = "Étape cochée"
-        verbose_name_plural = "Étapes cochées"
 
     def __str__(self):
         return f"{self.dossier.reference} — {self.etape.name}"
