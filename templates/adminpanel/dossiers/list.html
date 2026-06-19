@@ -21,6 +21,42 @@
 .pct-bar-mini-fill{height:100%;border-radius:100px}
 .pct-tech-fill{background:linear-gradient(90deg,#0B1F3A,#C1121F)}
 .pct-morc-fill{background:linear-gradient(90deg,#123C6D,#4B3A7A)}
+
+@media (max-width: 768px){
+
+  .filter-bar{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .search-input{
+    min-width:100%;
+    width:100%;
+  }
+
+  .status-btn{
+    width:100%;
+  }
+
+  .table-wrap{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  .table{
+    min-width:900px;
+  }
+
+  .page-header{
+    flex-direction:column;
+    align-items:flex-start;
+    gap:10px;
+  }
+
+  .pct-bar-mini{
+    width:50px;
+  }
+}
 </style>
 {% endblock %}
 
@@ -32,6 +68,7 @@
 <div class="filter-bar">
   <input type="text" class="search-input" id="searchInput" placeholder="Rechercher par référence, intitulé, client..." oninput="filterDossiers()">
   <button class="status-btn active" onclick="filterStatus('',this)">Tous</button>
+  <button class="status-btn" onclick="sortClientsAZ()">Clients A → Z</button>
   <button class="status-btn" onclick="filterStatus('encours',this)">En cours</button>
   <button class="status-btn" onclick="filterStatus('complet',this)">Complet</button>
 </div>
@@ -118,5 +155,19 @@ function filterDossiers(){
   });
   document.getElementById('countLabel').textContent = visible + ' dossier' + (visible > 1 ? 's' : '');
 }
+
+function sortClientsAZ() {
+    const tbody = document.querySelector('#dossiersTable tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr[data-status]'));
+
+    rows.sort((a, b) => {
+        const clientA = a.children[2].textContent.trim().toLowerCase();
+        const clientB = b.children[2].textContent.trim().toLowerCase();
+        return clientA.localeCompare(clientB);
+    });
+
+    rows.forEach(row => tbody.appendChild(row));
+}
+
 </script>
 {% endblock %}
