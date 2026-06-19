@@ -1,0 +1,34 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}Supprimer dossier — Admin{% endblock %}
+{% block breadcrumb %}<a href="{% url 'admin_dossiers' %}">Dossiers</a> › Supprimer{% endblock %}
+
+{% block content %}
+<div style="max-width:520px;margin:0 auto;padding:40px 0">
+  <div class="card">
+    <div class="card-body" style="text-align:center;padding:48px 36px">
+      <div style="font-size:48px;margin-bottom:20px">🗑</div>
+      <h2 style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:400;color:var(--navy);margin-bottom:12px">
+        Supprimer ce dossier ?
+      </h2>
+      <div style="background:var(--gray);border-radius:var(--radius-sm);padding:16px;margin-bottom:24px;text-align:left">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:4px">Référence</div>
+        <div style="font-weight:600;color:var(--navy)">{{ dossier.reference }}</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:8px;margin-bottom:4px">Intitulé</div>
+        <div style="font-weight:500">{{ dossier.get_title }}</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:8px;margin-bottom:4px">Client</div>
+        <div style="font-weight:500">{{ dossier.client.last_name|default:dossier.client.username }}</div>
+      </div>
+      <p style="font-size:13px;color:var(--red);margin-bottom:28px">
+        ⚠ Cette action est irréversible. Toutes les étapes et l'historique seront supprimés.
+      </p>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <form method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Confirmer la suppression</button>
+        </form>
+        <a href="{% url 'admin_dossier_detail' dossier.pk %}" class="btn btn-outline">Annuler</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

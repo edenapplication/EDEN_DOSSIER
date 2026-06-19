@@ -1,0 +1,169 @@
+{% extends 'adminpanel/base.html' %}
+{% block title %}Modifier dossier {{ dossier.reference }} — Admin{% endblock %}
+{% block breadcrumb %}<a href="{% url 'admin_dossiers' %}">Dossiers</a> › <a href="{% url 'admin_dossier_detail' dossier.pk %}">{{ dossier.reference }}</a> › Modifier{% endblock %}
+
+{% block extra_css %}
+<style>
+.client-search-wrap{position:relative}
+.client-search-input{width:100%;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 13px;font-size:14px;font-family:inherit;color:var(--text);transition:border-color .2s;outline:none}
+.client-search-input:focus{border-color:var(--navy)}
+.client-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid var(--navy);border-radius:var(--radius-sm);z-index:200;max-height:220px;overflow-y:auto;box-shadow:0 8px 32px rgba(11,31,58,.12);display:none}
+.client-dropdown.open{display:block}
+.client-option{padding:10px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background .15s;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.client-option:last-child{border-bottom:none}
+.client-option:hover,.client-option.highlighted{background:rgba(11,31,58,.05)}
+.client-option-avatar{width:26px;height:26px;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
+.client-selected-badge{display:none;align-items:center;gap:10px;padding:10px 14px;background:rgba(11,31,58,.04);border:1.5px solid var(--navy);border-radius:var(--radius-sm);margin-top:8px}
+.client-selected-badge.show{display:flex}
+.client-clear{margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px}
+.client-clear:hover{color:var(--red)}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Modifier le dossier</h1>
+    <p class="page-sub">{{ dossier.reference }} · {{ dossier.get_title }}</p>
+  </div>
+</div>
+
+<div style="max-width:720px">
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-section">
+      <div class="form-section-title">Informations principales</div>
+
+      <div class="form-group">
+        <label class="form-label">Client *</label>
+        <div class="client-search-wrap">
+          <input type="text" class="client-search-input" id="clientSearchInput"
+            placeholder="Tapez pour chercher un client..."
+            autocomplete="off" onkeydown="handleClientKey(event)">
+          <div class="client-dropdown" id="clientDropdown">
+            {% for c in clients %}
+            <div class="client-option"
+              data-pk="{{ c.pk }}"
+              data-name="{{ c.last_name|default:c.username }}"
+              data-username="{{ c.username }}"
+              data-initials="{{ c.get_initials }}"
+              data-search="{{ c.last_name|lower|default:'' }} {{ c.username|lower }} {{ c.email|lower }}"
+              onclick="selectClient(this)">
+              <div class="client-option-avatar">{{ c.get_initials }}</div>
+              <div>
+                <div style="font-weight:500;color:var(--navy)">{{ c.last_name|default:c.username }}</div>
+                <div style="font-size:11px;color:var(--muted)">@{{ c.username }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <input type="hidden" name="client" id="clientHidden" value="{{ dossier.client.pk }}" required>
+        <div class="client-selected-badge show" id="clientSelectedBadge">
+          <div class="client-option-avatar" id="clientSelectedAvatar">{{ dossier.client.get_initials }}</div>
+          <div>
+            <div style="font-weight:600;font-size:14px;color:var(--navy)" id="clientSelectedName">{{ dossier.client.last_name|default:dossier.client.username }}</div>
+            <div style="font-size:12px;color:var(--muted)" id="clientSelectedSub">@{{ dossier.client.username }}</div>
+          </div>
+          <button type="button" class="client-clear" onclick="clearClient()">✕</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Intitulé *</label>
+        <select name="intitule" class="form-control" required>
+          <option value="">-- Sélectionner --</option>
+          {% for i in intitules %}
+          <option value="{{ i.pk }}" {% if dossier.intitule_id == i.pk %}selected{% endif %}>{{ i.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Superficie (m²)</label>
+          <input type="number" name="superficie" class="form-control" value="{{ dossier.superficie|default:'' }}" step="0.01" placeholder="600">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date de paiement</label>
+          <input type="date" name="date_paiement" class="form-control" value="{{ dossier.date_paiement|date:'Y-m-d'|default:'' }}">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Notes internes</label>
+        <textarea name="description" class="form-control" rows="3">{{ dossier.description|default:'' }}</textarea>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Photo du dossier</div>
+      {% if dossier.photo %}
+      <div style="margin-bottom:12px">
+        <img src="{{ dossier.photo.url }}" style="width:200px;height:130px;object-fit:cover;border-radius:8px">
+        <div style="font-size:12px;color:var(--muted);margin-top:6px">Photo actuelle — importer une nouvelle pour la remplacer</div>
+      </div>
+      {% endif %}
+      <div class="form-group">
+        <label class="form-label">Nouvelle photo</label>
+        <input type="file" name="photo" class="form-control" accept="image/*">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px">
+      <button type="submit" class="btn btn-primary">Sauvegarder les modifications →</button>
+      <a href="{% url 'admin_dossier_detail' dossier.pk %}" class="btn btn-outline">Annuler</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const searchInput = document.getElementById('clientSearchInput');
+const dropdown = document.getElementById('clientDropdown');
+const hiddenInput = document.getElementById('clientHidden');
+const badge = document.getElementById('clientSelectedBadge');
+const allOptions = Array.from(dropdown.querySelectorAll('.client-option'));
+let highlightedIndex = -1;
+
+searchInput.addEventListener('focus', ()=>{
+  if(!badge.classList.contains('show')){ showDropdown(); filterOptions(''); }
+});
+searchInput.addEventListener('input', ()=>{
+  hiddenInput.value=''; badge.classList.remove('show'); searchInput.style.display='block';
+  filterOptions(searchInput.value); showDropdown();
+});
+document.addEventListener('click', e=>{ if(!e.target.closest('.client-search-wrap')) closeDropdown(); });
+
+function filterOptions(query){
+  const q=query.toLowerCase().trim(); let visible=0; highlightedIndex=-1;
+  allOptions.forEach(opt=>{ const match=!q||opt.dataset.search.includes(q); opt.style.display=match?'':'none'; opt.classList.remove('highlighted'); if(match)visible++; });
+  let noRes=dropdown.querySelector('.no-results');
+  if(visible===0){ if(!noRes){noRes=document.createElement('div');noRes.className='no-results';noRes.style.cssText='padding:14px;text-align:center;color:var(--muted);font-size:13px';noRes.textContent='Aucun client trouvé';dropdown.appendChild(noRes);} noRes.style.display=''; }
+  else{ if(noRes)noRes.style.display='none'; }
+}
+function showDropdown(){ dropdown.classList.add('open'); }
+function closeDropdown(){ dropdown.classList.remove('open'); highlightedIndex=-1; }
+function selectClient(opt){
+  hiddenInput.value=opt.dataset.pk; searchInput.style.display='none'; badge.classList.add('show');
+  document.getElementById('clientSelectedAvatar').textContent=opt.dataset.initials;
+  document.getElementById('clientSelectedName').textContent=opt.dataset.name;
+  document.getElementById('clientSelectedSub').textContent='@'+opt.dataset.username;
+  closeDropdown();
+}
+function clearClient(){
+  hiddenInput.value=''; searchInput.value=''; searchInput.style.display='block'; badge.classList.remove('show');
+  filterOptions(''); searchInput.focus();
+}
+function handleClientKey(e){
+  const visible=allOptions.filter(o=>o.style.display!=='none');
+  if(!dropdown.classList.contains('open'))return;
+  if(e.key==='ArrowDown'){e.preventDefault();if(highlightedIndex<visible.length-1)highlightedIndex++;updateHighlight(visible);}
+  else if(e.key==='ArrowUp'){e.preventDefault();if(highlightedIndex>0)highlightedIndex--;updateHighlight(visible);}
+  else if(e.key==='Enter'){e.preventDefault();if(highlightedIndex>=0&&visible[highlightedIndex])selectClient(visible[highlightedIndex]);}
+  else if(e.key==='Escape')closeDropdown();
+}
+function updateHighlight(visible){ visible.forEach((o,i)=>{o.classList.toggle('highlighted',i===highlightedIndex);if(i===highlightedIndex)o.scrollIntoView({block:'nearest'});}); }
+</script>
+{% endblock %}

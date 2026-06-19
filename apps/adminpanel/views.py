@@ -233,6 +233,12 @@ def admin_client_create(request):
 def admin_client_edit(request, pk):
     u = get_object_or_404(User, pk=pk)
     if request.method == 'POST':
+        new_username = request.POST.get('username', '').strip()
+        if new_username and new_username != u.username:
+            if User.objects.filter(username=new_username).exclude(pk=pk).exists():
+                messages.error(request, f"L'identifiant '{new_username}' est déjà utilisé.")
+                return render(request, 'adminpanel/clients/form.html', {'client': u, 'action': 'Modifier', 'roles': User.ROLE_CHOICES})
+            u.username = new_username
         u.last_name = request.POST.get('last_name', '')
         u.email = request.POST.get('email', '')
         u.phone = request.POST.get('phone', '')
@@ -242,13 +248,17 @@ def admin_client_edit(request, pk):
         new_role = request.POST.get('role', u.role)
         u.role = new_role
         u.is_staff = new_role in ('admin', 'commercial')
-        if request.POST.get('password'):
-            u.set_password(request.POST.get('password'))
+        new_password = request.POST.get('password', '').strip()
+        if new_password:
+            u.set_password(new_password)
         u.save()
-        messages.success(request, "Utilisateur modifié.")
+        messages.success(request, f"Utilisateur '{u.username}' modifié avec succès.")
         return redirect('admin_clients')
-    return render(request, 'adminpanel/clients/form.html', {'client': u, 'action': 'Modifier', 'roles': User.ROLE_CHOICES})
-
+    return render(request, 'adminpanel/clients/form.html', {
+        'client': u,
+        'action': 'Modifier',
+        'roles': User.ROLE_CHOICES
+    })
 
 @admin_required
 def admin_client_delete(request, pk):
@@ -679,30 +689,86 @@ def admin_etape_toggle(request, dossier_pk, etape_pk):
 
 
 @admin_required
+def admin_dossier_edit(request, pk):
+    dossier = get_object_or_404(Dossier, pk=pk)
+    clients = User.objects.filter(role='client', is_active=True)
+    intitules = IntituleDossier.objects.all()
+    if request.method == 'POST':
+        client_id = request.POST.get('client')
+        if client_id:
+            dossier.client_id = client_id
+        intitule_id = request.POST.get('intitule')
+        dossier.intitule = get_object_or_404(IntituleDossier, pk=intitule_id) if intitule_id else None
+        dossier.superficie = request.POST.get('superficie') or None
+        dossier.date_paiement = request.POST.get('date_paiement') or None
+        dossier.description = request.POST.get('description', '')
+        if request.FILES.get('photo'):
+            dossier.photo = request.FILES['photo']
+        dossier.save()
+        DossierHistorique.objects.create(
+            dossier=dossier,
+            message="Dossier modifié",
+            created_by=request.user
+        )
+        messages.success(request, "Dossier modifié avec succès.")
+        return redirect('admin_dossier_detail', pk=dossier.pk)
+    return render(request, 'adminpanel/dossiers/edit.html', {
+        'dossier': dossier,
+        'clients': clients,
+        'intitules': intitules,
+    })
+
+
+@admin_required
 def admin_dossier_delete(request, pk):
     d = get_object_or_404(Dossier, pk=pk)
     if request.method == 'POST':
         d.delete()
         messages.success(request, "Dossier supprimé.")
-    return redirect('admin_dossiers')
+        return redirect('admin_dossiers')
+    return render(request, 'adminpanel/dossiers/confirm_delete.html', {'dossier': d})
 
 
 @admin_required
 def admin_dossiers_alerte(request):
-    seuil = timezone.now() - datetime.timedelta(days=45)
-    tous = Dossier.objects.filter(created_at__lte=seuil).select_related('client', 'intitule')
+    import datetime as dt
+    today = timezone.now().date()
+    seuil = today - dt.timedelta(days=45)
+    tous = Dossier.objects.filter(
+        date_paiement__isnull=False,
+        date_paiement__lte=seuil
+    ).select_related('client', 'intitule')
     dossiers = [d for d in tous if not d.is_complete()]
+
     if request.GET.get('export') == 'csv':
         response = HttpResponse(content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="dossiers_alerte_45j.csv"'
         response.write('\ufeff')
         writer = csv.writer(response, delimiter=';')
-        writer.writerow(['Référence', 'Intitulé', 'Client', 'Téléphone', 'Email', 'Superficie', 'Date paiement', 'Jours', 'Tech %', 'Morc %'])
+        writer.writerow(['Référence', 'Intitulé', 'Client', 'Téléphone', 'Email', 'Superficie', 'Date paiement', 'Jours depuis paiement', 'Tech %', 'Morc %'])
         for d in dossiers:
-            writer.writerow([d.reference, d.get_title(), d.client.get_full_name() or d.client.username, d.client.phone, d.client.email, d.superficie or '', d.date_paiement.strftime('%d/%m/%Y') if d.date_paiement else '', d.get_jours_existence(), d.get_progression_technique(), d.get_progression_morcellement()])
+            jours = (today - d.date_paiement).days if d.date_paiement else 0
+            writer.writerow([
+                d.reference, d.get_title(),
+                d.client.get_full_name() or d.client.username,
+                d.client.phone, d.client.email,
+                d.superficie or '',
+                d.date_paiement.strftime('%d/%m/%Y') if d.date_paiement else '',
+                jours,
+                d.get_progression_technique(),
+                d.get_progression_morcellement()
+            ])
         return response
-    return render(request, 'adminpanel/dossiers/alerte.html', {'dossiers': dossiers, 'count': len(dossiers)})
 
+    dossiers_with_days = []
+    for d in dossiers:
+        jours = (today - d.date_paiement).days if d.date_paiement else 0
+        dossiers_with_days.append({'dossier': d, 'jours': jours})
+
+    return render(request, 'adminpanel/dossiers/alerte.html', {
+        'dossiers_with_days': dossiers_with_days,
+        'count': len(dossiers_with_days),
+    })
 
 # ── RÉSERVATIONS ──
 @admin_required

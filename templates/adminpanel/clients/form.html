@@ -1,6 +1,7 @@
 {% extends 'adminpanel/base.html' %}
 {% block title %}{{ action }} utilisateur — Admin{% endblock %}
 {% block breadcrumb %}<a href="{% url 'admin_clients' %}">Utilisateurs</a> › {{ action }}{% endblock %}
+
 {% block content %}
 <div class="page-header"><div><h1 class="page-title">{{ action }} un utilisateur</h1></div></div>
 <div style="max-width:620px">
@@ -17,25 +18,31 @@
         </select>
         <span class="form-hint">Admin et Commercial ont accès au panneau. Le Commercial ne gère pas les dossiers.</span>
       </div>
-      {% if not client %}
+
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Identifiant (login) *</label>
-          <input type="text" name="username" class="form-control" required placeholder="jean.mballa">
+          <input type="text" name="username" class="form-control" required
+            value="{{ client.username|default:'' }}"
+            placeholder="jean.mballa">
+          {% if client %}<span class="form-hint">⚠ Modifier l'identifiant déconnectera le client lors de sa prochaine tentative</span>{% endif %}
         </div>
         <div class="form-group">
-          <label class="form-label">Mot de passe *</label>
-          <input type="text" name="password" class="form-control" required placeholder="Mot de passe provisoire">
+          <label class="form-label">
+            {% if client %}Nouveau mot de passe{% else %}Mot de passe *{% endif %}
+          </label>
+          <input type="text" name="password" class="form-control"
+            {% if not client %}required{% endif %}
+            placeholder="{% if client %}Laisser vide pour conserver{% else %}Mot de passe provisoire{% endif %}">
+          {% if client %}<span class="form-hint">Laisser vide pour ne pas changer</span>{% endif %}
         </div>
       </div>
-      {% else %}
-      <div class="form-group">
-        <label class="form-label">Nouveau mot de passe (laisser vide pour ne pas changer)</label>
-        <input type="text" name="password" class="form-control" placeholder="Laisser vide pour conserver">
-      </div>
-      {% endif %}
-      <label class="form-check"><input type="checkbox" name="is_active" {% if client.is_active or not client %}checked{% endif %}> Compte actif</label>
+
+      <label class="form-check" style="margin-top:4px">
+        <input type="checkbox" name="is_active" {% if client.is_active or not client %}checked{% endif %}> Compte actif
+      </label>
     </div>
+
     <div class="form-section">
       <div class="form-section-title">Informations personnelles</div>
       <div class="form-row">
@@ -53,11 +60,21 @@
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Email</label><input type="email" name="email" class="form-control" value="{{ client.email|default:'' }}"></div>
-        <div class="form-group"><label class="form-label">Téléphone</label><input type="text" name="phone" class="form-control" value="{{ client.phone|default:'' }}" placeholder="+237 6XX XXX XXX"></div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" name="email" class="form-control" value="{{ client.email|default:'' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Téléphone</label>
+          <input type="text" name="phone" class="form-control" value="{{ client.phone|default:'' }}" placeholder="+237 6XX XXX XXX">
+        </div>
       </div>
-      <div class="form-group"><label class="form-label">Ville</label><input type="text" name="city" class="form-control" value="{{ client.city|default:'' }}"></div>
+      <div class="form-group">
+        <label class="form-label">Ville</label>
+        <input type="text" name="city" class="form-control" value="{{ client.city|default:'' }}">
+      </div>
     </div>
+
     <div style="display:flex;gap:12px">
       <button type="submit" class="btn btn-primary">{{ action }} →</button>
       <a href="{% url 'admin_clients' %}" class="btn btn-outline">Annuler</a>

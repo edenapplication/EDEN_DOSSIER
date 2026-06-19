@@ -42,14 +42,13 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">{{ dossier.get_title }}</h1>
-    <p class="page-sub">{{ dossier.reference }} · {{ dossier.client.get_full_name|default:dossier.client.username }} · {{ dossier.get_jours_existence }} jours</p>
+    <p class="page-sub">{{ dossier.reference }} · {{ dossier.client.last_name|default:dossier.client.username }} · {{ dossier.get_jours_existence }} jours</p>
   </div>
   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
     <span class="badge {% if dossier.is_complete %}badge-green{% else %}badge-yellow{% endif %}">{{ dossier.get_statut_display }}</span>
     {% if dossier.is_alerte_45j %}<span class="badge badge-orange">⚠ +45 jours</span>{% endif %}
-    <form method="post" action="{% url 'admin_dossier_delete' dossier.pk %}" onsubmit="return confirm('Supprimer ce dossier ?')">
-      {% csrf_token %}<button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
-    </form>
+    <a href="{% url 'admin_dossier_edit' dossier.pk %}" class="btn btn-outline btn-sm">✏ Modifier</a>
+    <a href="{% url 'admin_dossier_delete' dossier.pk %}" class="btn btn-danger btn-sm">🗑 Supprimer</a>
   </div>
 </div>
 
