@@ -823,3 +823,131 @@ def admin_chatbot_delete(request, pk):
         kb.delete()
         messages.success(request, "Supprimé.")
     return redirect('admin_chatbot')
+
+@admin_required
+def admin_clients_bulk(request):
+    if request.method == 'POST':
+        ids = request.POST.getlist('selected_ids')
+        action = request.POST.get('bulk_action')
+        if not ids:
+            messages.error(request, "Aucun utilisateur sélectionné.")
+            return redirect('admin_clients')
+        users = User.objects.filter(pk__in=ids)
+        if action == 'activer':
+            users.update(is_active=True)
+            messages.success(request, f"{users.count()} utilisateur(s) activé(s).")
+        elif action == 'desactiver':
+            users.exclude(pk=request.user.pk).update(is_active=False)
+            messages.success(request, "Utilisateurs désactivés.")
+        elif action == 'supprimer':
+            users.exclude(pk=request.user.pk).delete()
+            messages.success(request, "Utilisateurs supprimés.")
+        elif action == 'role_client':
+            users.update(role='client', is_staff=False)
+            messages.success(request, "Rôle mis à jour : Client.")
+        elif action == 'role_commercial':
+            users.update(role='commercial', is_staff=True)
+            messages.success(request, "Rôle mis à jour : Commercial.")
+        elif action == 'role_admin':
+            users.update(role='admin', is_staff=True)
+            messages.success(request, "Rôle mis à jour : Administrateur.")
+    return redirect('admin_clients')
+
+
+@admin_required
+def admin_dossiers_bulk(request):
+    if request.method == 'POST':
+        ids = request.POST.getlist('selected_ids')
+        action = request.POST.get('bulk_action')
+        if not ids:
+            messages.error(request, "Aucun dossier sélectionné.")
+            return redirect('admin_dossiers')
+        dossiers = Dossier.objects.filter(pk__in=ids)
+        if action == 'supprimer':
+            count = dossiers.count()
+            dossiers.delete()
+            messages.success(request, f"{count} dossier(s) supprimé(s).")
+        elif action == 'export_excel':
+            return _export_dossiers_excel(dossiers)
+    return redirect('admin_dossiers')
+
+
+@admin_required
+def admin_dossiers_export_excel(request):
+    ids = request.GET.get('ids', '')
+    status_filter = request.GET.get('status', '')
+    search = request.GET.get('search', '')
+    dossiers_qs = Dossier.objects.select_related('client', 'intitule').all()
+    if ids:
+        id_list = [i for i in ids.split(',') if i.strip().isdigit()]
+        dossiers_qs = dossiers_qs.filter(pk__in=id_list)
+    else:
+        if status_filter == 'encours':
+            dossiers_qs = [d for d in dossiers_qs if not d.is_complete()]
+        elif status_filter == 'complet':
+            dossiers_qs = [d for d in dossiers_qs if d.is_complete()]
+        if search:
+            s = search.lower()
+            dossiers_qs = [d for d in dossiers_qs if s in d.reference.lower() or s in d.get_title().lower() or s in (d.client.last_name or '').lower() or s in d.client.username.lower()]
+    return _export_dossiers_excel(dossiers_qs)
+
+
+def _export_dossiers_excel(dossiers_qs):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Dossiers"
+    header_fill = PatternFill("solid", fgColor="0B1F3A")
+    header_font = Font(bold=True, color="FFFFFF")
+    headers = ['Référence', 'Intitulé', 'Client', 'Identifiant', 'Téléphone', 'Email', 'Superficie (m²)', 'Date paiement', 'Avancement Tech (%)', 'Avancement Morc. (%)', 'Statut']
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+    for d in dossiers_qs:
+        ws.append([
+            d.reference,
+            d.get_title(),
+            (d.client.last_name or d.client.username).upper(),
+            d.client.username,
+            d.client.phone,
+            d.client.email,
+            float(d.superficie) if d.superficie else '',
+            d.date_paiement.strftime('%d/%m/%Y') if d.date_paiement else '',
+            d.get_progression_technique(),
+            d.get_progression_morcellement(),
+            d.get_statut_display(),
+        ])
+    col_widths = [18, 22, 20, 16, 16, 24, 14, 16, 16, 16, 12]
+    for i, w in enumerate(col_widths, 1):
+        ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="dossiers_eden.xlsx"'
+    wb.save(response)
+    return response
+
+
+@admin_required
+def admin_dossiers_supprimer_doublons(request):
+    if request.method == 'POST':
+        from django.db.models import Count
+        seen = {}
+        doublons_ids = []
+        dossiers = Dossier.objects.select_related('client', 'intitule').order_by('created_at')
+        for d in dossiers:
+            key = (
+                d.client_id,
+                d.intitule_id,
+                str(d.superficie) if d.superficie else 'none'
+            )
+            if key in seen:
+                doublons_ids.append(d.pk)
+            else:
+                seen[key] = d.pk
+        if doublons_ids:
+            count = len(doublons_ids)
+            Dossier.objects.filter(pk__in=doublons_ids).delete()
+            messages.success(request, f"{count} doublon(s) supprimé(s) (intitulé + client + superficie identiques — le(s) plus récent(s) supprimé(s)).")
+        else:
+            messages.info(request, "Aucun doublon détecté.")
+    return redirect('admin_dossiers')

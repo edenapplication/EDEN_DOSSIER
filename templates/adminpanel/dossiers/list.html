@@ -10,10 +10,10 @@
 
 {% block extra_css %}
 <style>
-.filter-bar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
 .search-input{flex:1;min-width:220px;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
 .search-input:focus{border-color:var(--navy)}
-.status-btn{padding:7px 16px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;border:1.5px solid var(--border);background:#fff;cursor:pointer;transition:all .2s;letter-spacing:.5px}
+.status-btn{padding:7px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;border:1.5px solid var(--border);background:#fff;cursor:pointer;transition:all .2s;letter-spacing:.5px;color:var(--text)}
 .status-btn.active,.status-btn:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
 .pct-cell{text-align:center}
 .pct-num{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:400;line-height:1}
@@ -22,118 +22,144 @@
 .pct-tech-fill{background:linear-gradient(90deg,#0B1F3A,#C1121F)}
 .pct-morc-fill{background:linear-gradient(90deg,#123C6D,#4B3A7A)}
 
-@media (max-width: 768px){
+/* BULK BAR */
+.bulk-bar{display:none;background:linear-gradient(135deg,rgba(11,31,58,.06),rgba(193,18,31,.04));border:1.5px solid rgba(11,31,58,.15);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;align-items:center;gap:12px;flex-wrap:wrap}
+.bulk-bar.visible{display:flex}
+.bulk-count{font-size:13px;font-weight:600;color:var(--navy);flex-shrink:0}
+.bulk-select{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:7px 12px;font-size:13px;font-family:inherit;color:var(--text);outline:none;cursor:pointer}
+.bulk-apply{padding:7px 18px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;border:none;cursor:pointer;letter-spacing:.5px;text-transform:uppercase;transition:all .2s}
+.bulk-apply-primary{background:var(--gradient);color:#fff}
+.bulk-apply-primary:hover{opacity:.9}
+.bulk-apply-danger{background:rgba(193,18,31,.1);color:var(--red);border:1.5px solid rgba(193,18,31,.2)}
+.bulk-apply-danger:hover{background:var(--red);color:#fff}
+.bulk-cancel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;margin-left:auto}
 
-  .filter-bar{
-    flex-direction:column;
-    align-items:stretch;
-  }
+/* CHECKBOX */
+.row-check{width:16px;height:16px;accent-color:var(--navy);cursor:pointer}
+.select-all-check{width:16px;height:16px;accent-color:var(--navy);cursor:pointer}
+tr.selected-row td{background:rgba(11,31,58,.04)}
 
-  .search-input{
-    min-width:100%;
-    width:100%;
-  }
+.client-name-cell{text-transform:uppercase;font-weight:500}
 
-  .status-btn{
-    width:100%;
-  }
-
-  .table-wrap{
-    overflow-x:auto;
-    -webkit-overflow-scrolling:touch;
-  }
-
-  .table{
-    min-width:900px;
-  }
-
-  .page-header{
-    flex-direction:column;
-    align-items:flex-start;
-    gap:10px;
-  }
-
-  .pct-bar-mini{
-    width:50px;
-  }
+@media(max-width:768px){
+  .filter-bar{flex-direction:column;align-items:stretch}
+  .search-input,.status-btn{width:100%;min-width:100%}
+  .table{min-width:900px}
+  .pct-bar-mini{width:50px}
 }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="page-header">
-  <div><h1 class="page-title">Dossiers fonciers</h1><p class="page-sub" id="countLabel">{{ dossiers_data|length }} dossier{{ dossiers_data|length|pluralize }}</p></div>
+  <div>
+    <h1 class="page-title">Dossiers fonciers</h1>
+    <p class="page-sub" id="countLabel">{{ dossiers_data|length }} dossier{{ dossiers_data|length|pluralize }}</p>
+  </div>
+  {% if request.user.role == 'admin' %}
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <form method="post" action="{% url 'admin_dossiers_supprimer_doublons' %}" onsubmit="return confirm('Supprimer tous les doublons (même intitulé + client + superficie) ? Le plus récent sera supprimé.')">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger btn-sm">🗑 Supprimer doublons</button>
+    </form>
+    <button class="btn btn-outline btn-sm" onclick="exportFiltered()">⬇ Exporter Excel (filtrés)</button>
+  </div>
+  {% endif %}
 </div>
 
 <div class="filter-bar">
   <input type="text" class="search-input" id="searchInput" placeholder="Rechercher par référence, intitulé, client..." oninput="filterDossiers()">
   <button class="status-btn active" onclick="filterStatus('',this)">Tous</button>
-  <button class="status-btn" onclick="sortClientsAZ()">Clients A → Z</button>
   <button class="status-btn" onclick="filterStatus('encours',this)">En cours</button>
   <button class="status-btn" onclick="filterStatus('complet',this)">Complet</button>
+  <button class="status-btn" onclick="sortClientsAZ()">Clients A → Z</button>
 </div>
 
-<div class="card">
-  <div class="table-wrap">
-    <table class="table" id="dossiersTable">
-      <thead>
-        <tr>
-          <th>Référence</th>
-          <th>Intitulé</th>
-          <th>Client</th>
-          <th>Superficie</th>
-          <th>Date paiement</th>
-          <th style="text-align:center">Avancement Tech</th>
-          <th style="text-align:center">Avancement Morc.</th>
-          <th>Statut</th>
-          {% if request.user.role == 'admin' %}<th>Actions</th>{% endif %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in dossiers_data %}
-        {% with pt=item.dossier.get_progression_technique pm=item.dossier.get_progression_morcellement %}
-        <tr
-          data-status="{% if item.is_complete %}complet{% else %}encours{% endif %}"
-          data-search="{{ item.dossier.reference|lower }} {{ item.dossier.get_title|lower }} {{ item.dossier.client.get_full_name|lower }} {{ item.dossier.client.username|lower }}">
-          <td><strong style="font-size:12px;color:var(--navy)">{{ item.dossier.reference }}</strong></td>
-          <td><strong>{{ item.dossier.get_title }}</strong></td>
-          <td>{{ item.dossier.client.get_full_name|default:item.dossier.client.username }}</td>
-          <td>{% if item.dossier.superficie %}{{ item.dossier.superficie }} m²{% else %}<span style="color:var(--muted)">—</span>{% endif %}</td>
-          <td>{% if item.dossier.date_paiement %}{{ item.dossier.date_paiement|date:"d/m/Y" }}{% else %}<span style="color:var(--muted)">—</span>{% endif %}</td>
-          <td class="pct-cell">
-            <div class="pct-num" style="color:{% if pt == 100 %}#065f46{% else %}var(--navy){% endif %}">{{ pt }}%</div>
-            <div class="pct-bar-mini">
-              <div class="pct-bar-mini-fill pct-tech-fill" style="width:{{ pt }}%"></div>
-            </div>
-          </td>
-          <td class="pct-cell">
-            <div class="pct-num" style="color:{% if pm == 100 %}#065f46{% else %}var(--navy){% endif %}">{{ pm }}%</div>
-            <div class="pct-bar-mini">
-              <div class="pct-bar-mini-fill pct-morc-fill" style="width:{{ pm }}%"></div>
-            </div>
-          </td>
-          <td>
-            <span class="badge {% if item.is_complete %}badge-green{% else %}badge-yellow{% endif %}">
-              {% if item.is_complete %}Complet{% else %}En cours{% endif %}
-            </span>
-          </td>
-          {% if request.user.role == 'admin' %}
-          <td><a href="{% url 'admin_dossier_detail' item.dossier.pk %}" class="btn btn-secondary btn-xs">Gérer →</a></td>
-          {% endif %}
-        </tr>
-        {% endwith %}
-        {% empty %}
-        <tr><td colspan="9" style="text-align:center;padding:48px;color:var(--muted)">Aucun dossier créé</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+<!-- BULK BAR -->
+<div class="bulk-bar" id="bulkBar">
+  <span class="bulk-count" id="bulkCount">0 sélectionné(s)</span>
+  <select class="bulk-select" id="bulkAction">
+    <option value="">-- Choisir une action --</option>
+    <option value="export_excel">⬇ Exporter en Excel</option>
+    <option value="supprimer">🗑 Supprimer</option>
+  </select>
+  <button class="bulk-apply bulk-apply-primary" onclick="applyBulk()">Appliquer</button>
+  <button class="bulk-cancel" onclick="clearSelection()">✕ Annuler</button>
 </div>
+
+<form method="post" action="{% url 'admin_dossiers_bulk' %}" id="bulkForm">
+  {% csrf_token %}
+  <input type="hidden" name="bulk_action" id="bulkActionHidden">
+  <div class="card">
+    <div class="table-wrap">
+      <table class="table" id="dossiersTable">
+        <thead>
+          <tr>
+            {% if request.user.role == 'admin' %}
+            <th style="width:36px"><input type="checkbox" class="select-all-check" id="selectAll" onchange="toggleAll(this)"></th>
+            {% endif %}
+            <th>Référence</th>
+            <th>Intitulé</th>
+            <th>Client</th>
+            <th>Superficie</th>
+            <th>Date paiement</th>
+            <th style="text-align:center">Avancement Tech</th>
+            <th style="text-align:center">Avancement Morc.</th>
+            <th>Statut</th>
+            {% if request.user.role == 'admin' %}<th>Actions</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in dossiers_data %}
+          {% with pt=item.dossier.get_progression_technique pm=item.dossier.get_progression_morcellement %}
+          <tr
+            data-pk="{{ item.dossier.pk }}"
+            data-status="{% if item.is_complete %}complet{% else %}encours{% endif %}"
+            data-search="{{ item.dossier.reference|lower }} {{ item.dossier.get_title|lower }} {{ item.dossier.client.last_name|lower }} {{ item.dossier.client.username|lower }}">
+            {% if request.user.role == 'admin' %}
+            <td><input type="checkbox" class="row-check" name="selected_ids" value="{{ item.dossier.pk }}" onchange="onCheckChange()"></td>
+            {% endif %}
+            <td><strong style="font-size:12px;color:var(--navy)">{{ item.dossier.reference }}</strong></td>
+            <td><strong>{{ item.dossier.get_title }}</strong></td>
+            <td class="client-name-cell">{{ item.dossier.client.last_name|default:item.dossier.client.username }}</td>
+            <td>{% if item.dossier.superficie %}{{ item.dossier.superficie }} m²{% else %}<span style="color:var(--muted)">—</span>{% endif %}</td>
+            <td>{% if item.dossier.date_paiement %}{{ item.dossier.date_paiement|date:"d/m/Y" }}{% else %}<span style="color:var(--muted)">—</span>{% endif %}</td>
+            <td class="pct-cell">
+              <div class="pct-num" style="color:{% if pt == 100 %}#065f46{% else %}var(--navy){% endif %}">{{ pt }}%</div>
+              <div class="pct-bar-mini"><div class="pct-bar-mini-fill pct-tech-fill" style="width:{{ pt }}%"></div></div>
+            </td>
+            <td class="pct-cell">
+              <div class="pct-num" style="color:{% if pm == 100 %}#065f46{% else %}var(--navy){% endif %}">{{ pm }}%</div>
+              <div class="pct-bar-mini"><div class="pct-bar-mini-fill pct-morc-fill" style="width:{{ pm }}%"></div></div>
+            </td>
+            <td>
+              <span class="badge {% if item.is_complete %}badge-green{% else %}badge-yellow{% endif %}">
+                {% if item.is_complete %}Complet{% else %}En cours{% endif %}
+              </span>
+            </td>
+            {% if request.user.role == 'admin' %}
+            <td style="white-space:nowrap">
+              <a href="{% url 'admin_dossier_detail' item.dossier.pk %}" class="btn btn-secondary btn-xs">Gérer</a>
+              <a href="{% url 'admin_dossier_edit' item.dossier.pk %}" class="btn btn-outline btn-xs">✏</a>
+              <a href="{% url 'admin_dossier_delete' item.dossier.pk %}" class="btn btn-danger btn-xs">🗑</a>
+            </td>
+            {% endif %}
+          </tr>
+          {% endwith %}
+          {% empty %}
+          <tr><td colspan="10" style="text-align:center;padding:48px;color:var(--muted)">Aucun dossier créé</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</form>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 let currentStatus = '';
+let currentSearch = '';
 
 function filterStatus(status, btn){
   currentStatus = status;
@@ -143,12 +169,12 @@ function filterStatus(status, btn){
 }
 
 function filterDossiers(){
-  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  currentSearch = document.getElementById('searchInput').value.toLowerCase().trim();
   const rows = document.querySelectorAll('#dossiersTable tbody tr[data-status]');
   let visible = 0;
   rows.forEach(row=>{
     const matchStatus = !currentStatus || row.dataset.status === currentStatus;
-    const matchSearch = !q || row.dataset.search.includes(q);
+    const matchSearch = !currentSearch || row.dataset.search.includes(currentSearch);
     const show = matchStatus && matchSearch;
     row.style.display = show ? '' : 'none';
     if(show) visible++;
@@ -156,18 +182,80 @@ function filterDossiers(){
   document.getElementById('countLabel').textContent = visible + ' dossier' + (visible > 1 ? 's' : '');
 }
 
-function sortClientsAZ() {
-    const tbody = document.querySelector('#dossiersTable tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr[data-status]'));
-
-    rows.sort((a, b) => {
-        const clientA = a.children[2].textContent.trim().toLowerCase();
-        const clientB = b.children[2].textContent.trim().toLowerCase();
-        return clientA.localeCompare(clientB);
-    });
-
-    rows.forEach(row => tbody.appendChild(row));
+function sortClientsAZ(){
+  const tbody = document.querySelector('#dossiersTable tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr[data-status]'));
+  rows.sort((a,b)=>{
+    const ca = a.querySelector('.client-name-cell')?.textContent.trim().toLowerCase() || '';
+    const cb = b.querySelector('.client-name-cell')?.textContent.trim().toLowerCase() || '';
+    return ca.localeCompare(cb);
+  });
+  rows.forEach(r=>tbody.appendChild(r));
 }
 
+function exportFiltered(){
+  const visibleIds = Array.from(document.querySelectorAll('#dossiersTable tbody tr[data-status]'))
+    .filter(r=>r.style.display !== 'none')
+    .map(r=>r.dataset.pk)
+    .filter(Boolean);
+  if(visibleIds.length === 0){ alert('Aucun dossier visible à exporter.'); return; }
+  const url = `{% url 'admin_dossiers_export_excel' %}?ids=${visibleIds.join(',')}&status=${currentStatus}&search=${encodeURIComponent(currentSearch)}`;
+  window.location.href = url;
+}
+
+// ── BULK SELECTION ──
+function onCheckChange(){
+  const checked = document.querySelectorAll('.row-check:checked');
+  const total = checked.length;
+  document.getElementById('bulkCount').textContent = total + ' sélectionné' + (total>1?'s':'');
+  document.getElementById('bulkBar').classList.toggle('visible', total > 0);
+  document.querySelectorAll('#dossiersTable tbody tr[data-status]').forEach(row=>{
+    const cb = row.querySelector('.row-check');
+    row.classList.toggle('selected-row', cb && cb.checked);
+  });
+  const selectAll = document.getElementById('selectAll');
+  if(!selectAll) return;
+  const allVisible = Array.from(document.querySelectorAll('#dossiersTable tbody tr[data-status]'))
+    .filter(r=>r.style.display!=='none')
+    .map(r=>r.querySelector('.row-check')).filter(Boolean);
+  selectAll.indeterminate = total > 0 && total < allVisible.length;
+  selectAll.checked = total > 0 && total === allVisible.length;
+}
+
+function toggleAll(masterCb){
+  const visible = Array.from(document.querySelectorAll('#dossiersTable tbody tr[data-status]'))
+    .filter(r=>r.style.display!=='none');
+  visible.forEach(row=>{
+    const cb = row.querySelector('.row-check');
+    if(cb) cb.checked = masterCb.checked;
+    row.classList.toggle('selected-row', masterCb.checked);
+  });
+  onCheckChange();
+}
+
+function applyBulk(){
+  const action = document.getElementById('bulkAction').value;
+  if(!action){ alert('Veuillez choisir une action.'); return; }
+  const checked = document.querySelectorAll('.row-check:checked');
+  if(checked.length === 0){ alert('Aucun dossier sélectionné.'); return; }
+
+  if(action === 'export_excel'){
+    const ids = Array.from(checked).map(cb=>cb.value).join(',');
+    window.location.href = `{% url 'admin_dossiers_export_excel' %}?ids=${ids}`;
+    return;
+  }
+
+  if(action === 'supprimer' && !confirm(`Supprimer ${checked.length} dossier(s) ? Cette action est irréversible.`)) return;
+  document.getElementById('bulkActionHidden').value = action;
+  document.getElementById('bulkForm').submit();
+}
+
+function clearSelection(){
+  document.querySelectorAll('.row-check').forEach(cb=>cb.checked=false);
+  const sa = document.getElementById('selectAll');
+  if(sa){ sa.checked=false; sa.indeterminate=false; }
+  document.querySelectorAll('.selected-row').forEach(r=>r.classList.remove('selected-row'));
+  document.getElementById('bulkBar').classList.remove('visible');
+}
 </script>
 {% endblock %}

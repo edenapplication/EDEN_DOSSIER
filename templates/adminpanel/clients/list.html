@@ -3,7 +3,7 @@
 {% block breadcrumb %}Utilisateurs{% endblock %}
 
 {% block topbar_actions %}
-<a href="{% url 'admin_clients_template' %}" class="topbar-btn" style="border:1.5px solid var(--border);color:var(--text);background:#fff">⬇ Modèle CSV</a>
+<a href="{% url 'admin_clients_template' %}" class="topbar-btn" style="border:1.5px solid var(--border);color:var(--text);background:#fff">⬇ Modèle Excel</a>
 <a href="{% url 'admin_clients_import' %}" class="topbar-btn" style="border:1.5px solid var(--border);color:var(--text);background:#fff">⬆ Importer</a>
 <a href="{% url 'admin_clients_export' %}" class="topbar-btn" style="border:1.5px solid var(--border);color:var(--text);background:#fff">⬇ Exporter</a>
 <a href="{% url 'admin_client_create' %}" class="topbar-btn topbar-btn-primary">+ Créer</a>
@@ -11,12 +11,32 @@
 
 {% block extra_css %}
 <style>
-.filter-bar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
 .search-input{flex:1;min-width:200px;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
 .search-input:focus{border-color:var(--navy)}
-.role-btn{padding:7px 16px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;border:1.5px solid var(--border);background:#fff;cursor:pointer;transition:all .2s;letter-spacing:.5px;text-decoration:none;color:var(--text)}
+.role-btn{padding:7px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;border:1.5px solid var(--border);background:#fff;cursor:pointer;transition:all .2s;letter-spacing:.5px;color:var(--text)}
 .role-btn.active,.role-btn:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
-.hidden-row{display:none}
+
+/* BULK BAR */
+.bulk-bar{display:none;background:linear-gradient(135deg,rgba(11,31,58,.06),rgba(193,18,31,.04));border:1.5px solid rgba(11,31,58,.15);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;align-items:center;gap:12px;flex-wrap:wrap}
+.bulk-bar.visible{display:flex}
+.bulk-count{font-size:13px;font-weight:600;color:var(--navy);flex-shrink:0}
+.bulk-select{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:7px 12px;font-size:13px;font-family:inherit;color:var(--text);outline:none;cursor:pointer}
+.bulk-select:focus{border-color:var(--navy)}
+.bulk-apply{padding:7px 18px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;border:none;cursor:pointer;letter-spacing:.5px;text-transform:uppercase;transition:all .2s}
+.bulk-apply-primary{background:var(--gradient);color:#fff}
+.bulk-apply-primary:hover{opacity:.9}
+.bulk-apply-danger{background:rgba(193,18,31,.1);color:var(--red);border:1.5px solid rgba(193,18,31,.2)}
+.bulk-apply-danger:hover{background:var(--red);color:#fff}
+.bulk-cancel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;margin-left:auto}
+.bulk-cancel:hover{color:var(--navy)}
+
+/* CHECKBOX */
+.row-check{width:16px;height:16px;accent-color:var(--navy);cursor:pointer}
+.select-all-check{width:16px;height:16px;accent-color:var(--navy);cursor:pointer}
+tr.selected-row{background:rgba(11,31,58,.04) !important}
+
+.name-upper{text-transform:uppercase;font-weight:600}
 </style>
 {% endblock %}
 
@@ -27,57 +47,91 @@
 
 <div class="filter-bar">
   <input type="text" class="search-input" id="searchInput" placeholder="Rechercher par nom, identifiant, email, ville..." oninput="filterTable()">
-  <button class="role-btn active" id="btn-all" onclick="filterRole('',this)">Tous</button>
-  <button class="role-btn" id="btn-admin" onclick="filterRole('admin',this)">Admin</button>
-  <button class="role-btn" id="btn-commercial" onclick="filterRole('commercial',this)">Commercial</button>
-  <button class="role-btn" id="btn-client" onclick="filterRole('client',this)">Client</button>
+  <button class="role-btn active" onclick="filterRole('',this)">Tous</button>
+  <button class="role-btn" onclick="filterRole('admin',this)">Admin</button>
+  <button class="role-btn" onclick="filterRole('commercial',this)">Commercial</button>
+  <button class="role-btn" onclick="filterRole('client',this)">Client</button>
+  <button class="role-btn" onclick="sortAZ()">A → Z</button>
 </div>
 
-<div class="card">
-  <div class="table-wrap">
-    <table class="table" id="usersTable">
-      <thead>
-        <tr><th>Utilisateur</th><th>Identifiant</th><th>Contact</th><th>Ville</th><th>Rôle</th><th>Statut</th>{% if request.user.role == 'admin' %}<th>Actions</th>{% endif %}</tr>
-      </thead>
-      <tbody>
-        {% for c in clients %}
-        <tr data-role="{{ c.role }}" data-search="{{ c.username|lower }} {{ c.first_name|lower }} {{ c.last_name|lower }} {{ c.email|lower }} {{ c.city|lower }} {{ c.phone|lower }}">
-          <td>
-            <div style="display:flex;align-items:center;gap:10px">
-              <div style="width:32px;height:32px;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0">{{ c.get_initials }}</div>
-              <div>
-                <div style="font-weight:500">{{ c.get_full_name|default:"—" }}</div>
-                <div style="font-size:11px;color:var(--muted)">{{ c.email|default:"" }}</div>
-              </div>
-            </div>
-          </td>
-          <td><code style="font-size:12px;background:var(--gray);padding:2px 8px;border-radius:4px">{{ c.username }}</code></td>
-          <td style="font-size:13px">{{ c.phone|default:"—" }}</td>
-          <td style="font-size:13px">{{ c.city|default:"—" }}</td>
-          <td>
-            <span class="badge {% if c.role == 'admin' %}badge-red{% elif c.role == 'commercial' %}badge-blue{% else %}badge-gray{% endif %}">
-              {{ c.get_role_display }}
-            </span>
-          </td>
-          <td><span class="badge {% if c.is_active %}badge-green{% else %}badge-red{% endif %}">{% if c.is_active %}Actif{% else %}Inactif{% endif %}</span></td>
-          <td style="white-space:nowrap">
-        {% if request.user.role == 'admin' %}
-            <a href="{% url 'admin_client_edit' c.pk %}" class="btn btn-outline btn-xs">Modifier</a>
-            {% if c.pk != request.user.pk %}
-            <form method="post" action="{% url 'admin_client_delete' c.pk %}" style="display:inline" onsubmit="return confirm('Supprimer cet utilisateur ?')">
-              {% csrf_token %}<button type="submit" class="btn btn-danger btn-xs">✕</button>
-            </form>
-        {% endif %}
-            {% endif %}
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="7" style="text-align:center;padding:48px;color:var(--muted)">Aucun utilisateur</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+<!-- BULK ACTION BAR -->
+<div class="bulk-bar" id="bulkBar">
+  <span class="bulk-count" id="bulkCount">0 sélectionné(s)</span>
+  <select class="bulk-select" id="bulkAction">
+    <option value="">-- Choisir une action --</option>
+    <option value="activer">Activer les comptes</option>
+    <option value="desactiver">Désactiver les comptes</option>
+    <option value="role_client">Changer rôle → Client</option>
+    <option value="role_commercial">Changer rôle → Commercial</option>
+    <option value="role_admin">Changer rôle → Admin</option>
+    <option value="supprimer">Supprimer</option>
+  </select>
+  <button class="bulk-apply bulk-apply-primary" onclick="applyBulk()">Appliquer</button>
+  <button class="bulk-apply bulk-apply-danger" id="bulkSuppr" onclick="applyBulkDanger()" style="display:none">Supprimer la sélection</button>
+  <button class="bulk-cancel" onclick="clearSelection()">✕ Annuler</button>
 </div>
+
+<form method="post" action="{% url 'admin_clients_bulk' %}" id="bulkForm">
+  {% csrf_token %}
+  <input type="hidden" name="bulk_action" id="bulkActionHidden">
+  <div class="card">
+    <div class="table-wrap">
+      <table class="table" id="usersTable">
+        <thead>
+          <tr>
+            {% if request.user.role == 'admin' %}<th style="width:36px"><input type="checkbox" class="select-all-check" id="selectAll" onchange="toggleAll(this)"></th>{% endif %}
+            <th>Utilisateur</th>
+            <th>Identifiant</th>
+            <th>Contact</th>
+            <th>Ville</th>
+            <th>Rôle</th>
+            <th>Statut</th>
+            {% if request.user.role == 'admin' %}<th>Actions</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in clients %}
+          <tr data-role="{{ c.role }}" data-search="{{ c.username|lower }} {{ c.last_name|lower }} {{ c.email|lower }} {{ c.city|lower }} {{ c.phone|lower }}" id="userRow{{ c.pk }}">
+            {% if request.user.role == 'admin' %}
+            <td><input type="checkbox" class="row-check" name="selected_ids" value="{{ c.pk }}" onchange="onCheckChange()"></td>
+            {% endif %}
+            <td>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="width:32px;height:32px;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0">{{ c.get_initials }}</div>
+                <div>
+                  <div class="name-upper">{{ c.last_name|default:"—" }}</div>
+                  <div style="font-size:11px;color:var(--muted)">{{ c.email|default:"" }}</div>
+                </div>
+              </div>
+            </td>
+            <td><code style="font-size:12px;background:var(--gray);padding:2px 8px;border-radius:4px">{{ c.username }}</code></td>
+            <td style="font-size:13px">{{ c.phone|default:"—" }}</td>
+            <td style="font-size:13px">{{ c.city|default:"—" }}</td>
+            <td>
+              <span class="badge {% if c.role == 'admin' %}badge-red{% elif c.role == 'commercial' %}badge-blue{% else %}badge-gray{% endif %}">
+                {{ c.get_role_display }}
+              </span>
+            </td>
+            <td><span class="badge {% if c.is_active %}badge-green{% else %}badge-red{% endif %}">{% if c.is_active %}Actif{% else %}Inactif{% endif %}</span></td>
+            {% if request.user.role == 'admin' %}
+            <td style="white-space:nowrap">
+              <a href="{% url 'admin_client_edit' c.pk %}" class="btn btn-outline btn-xs">Modifier</a>
+              {% if c.pk != request.user.pk %}
+              <form method="post" action="{% url 'admin_client_delete' c.pk %}" style="display:inline" onsubmit="return confirm('Supprimer cet utilisateur ?')">
+                {% csrf_token %}<button type="submit" class="btn btn-danger btn-xs">✕</button>
+              </form>
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" style="text-align:center;padding:48px;color:var(--muted)">Aucun utilisateur</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</form>
 {% endblock %}
 
 {% block extra_js %}
@@ -104,5 +158,76 @@ function filterTable(){
   });
   document.getElementById('countLabel').textContent = visible + ' utilisateur' + (visible > 1 ? 's' : '');
 }
+
+function sortAZ(){
+  const tbody = document.querySelector('#usersTable tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr[data-role]'));
+  rows.sort((a,b)=>{
+    const na = a.querySelector('.name-upper')?.textContent.trim().toLowerCase() || '';
+    const nb = b.querySelector('.name-upper')?.textContent.trim().toLowerCase() || '';
+    return na.localeCompare(nb);
+  });
+  rows.forEach(r=>tbody.appendChild(r));
+}
+
+// ── BULK SELECTION ──
+function onCheckChange(){
+  const checked = document.querySelectorAll('.row-check:checked');
+  const total = checked.length;
+  const bulkBar = document.getElementById('bulkBar');
+  document.getElementById('bulkCount').textContent = total + ' sélectionné' + (total>1?'s':'');
+  bulkBar.classList.toggle('visible', total > 0);
+  document.querySelectorAll('#usersTable tbody tr[data-role]').forEach(row=>{
+    const cb = row.querySelector('.row-check');
+    row.classList.toggle('selected-row', cb && cb.checked);
+  });
+  const selectAll = document.getElementById('selectAll');
+  const allVisible = Array.from(document.querySelectorAll('#usersTable tbody tr[data-role]'))
+    .filter(r=>r.style.display!=='none')
+    .map(r=>r.querySelector('.row-check'))
+    .filter(Boolean);
+  selectAll.indeterminate = total > 0 && total < allVisible.length;
+  selectAll.checked = total > 0 && total === allVisible.length;
+}
+
+function toggleAll(masterCb){
+  const visible = Array.from(document.querySelectorAll('#usersTable tbody tr[data-role]'))
+    .filter(r=>r.style.display!=='none');
+  visible.forEach(row=>{
+    const cb = row.querySelector('.row-check');
+    if(cb) cb.checked = masterCb.checked;
+    row.classList.toggle('selected-row', masterCb.checked);
+  });
+  onCheckChange();
+}
+
+function applyBulk(){
+  const action = document.getElementById('bulkAction').value;
+  if(!action){ alert('Veuillez choisir une action.'); return; }
+  const checked = document.querySelectorAll('.row-check:checked');
+  if(checked.length === 0){ alert('Aucun utilisateur sélectionné.'); return; }
+  if(action === 'supprimer' && !confirm(`Supprimer ${checked.length} utilisateur(s) ? Cette action est irréversible.`)) return;
+  document.getElementById('bulkActionHidden').value = action;
+  document.getElementById('bulkForm').submit();
+}
+
+function applyBulkDanger(){
+  if(!confirm('Supprimer les utilisateurs sélectionnés ?')) return;
+  document.getElementById('bulkActionHidden').value = 'supprimer';
+  document.getElementById('bulkForm').submit();
+}
+
+function clearSelection(){
+  document.querySelectorAll('.row-check').forEach(cb=>cb.checked=false);
+  const sa = document.getElementById('selectAll');
+  if(sa){ sa.checked=false; sa.indeterminate=false; }
+  document.querySelectorAll('.selected-row').forEach(r=>r.classList.remove('selected-row'));
+  document.getElementById('bulkBar').classList.remove('visible');
+}
+
+document.getElementById('bulkAction')?.addEventListener('change', function(){
+  const isDanger = this.value === 'supprimer';
+  document.getElementById('bulkSuppr').style.display = isDanger ? 'inline-block' : 'none';
+});
 </script>
 {% endblock %}

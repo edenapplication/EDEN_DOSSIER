@@ -26,6 +26,7 @@ urlpatterns = [
     path('utilisateurs/exporter/', views.admin_clients_export, name='admin_clients_export'),
     path('utilisateurs/importer/', views.admin_clients_import, name='admin_clients_import'),
     path('utilisateurs/modele/', views.admin_clients_template, name='admin_clients_template'),
+    path('utilisateurs/bulk/', views.admin_clients_bulk, name='admin_clients_bulk'),
 
     path('etapes/', views.admin_etapes_globales, name='admin_etapes_globales'),
     path('etapes/creer/', views.admin_etape_globale_create, name='admin_etape_globale_create'),
@@ -34,6 +35,9 @@ urlpatterns = [
 
     path('dossiers/', views.admin_dossiers, name='admin_dossiers'),
     path('dossiers/creer/', views.admin_dossier_create, name='admin_dossier_create'),
+    path('dossiers/bulk/', views.admin_dossiers_bulk, name='admin_dossiers_bulk'),
+    path('dossiers/export-excel/', views.admin_dossiers_export_excel, name='admin_dossiers_export_excel'),
+    path('dossiers/supprimer-doublons/', views.admin_dossiers_supprimer_doublons, name='admin_dossiers_supprimer_doublons'),
     path('dossiers/<int:pk>/', views.admin_dossier_detail, name='admin_dossier_detail'),
     path('dossiers/<int:pk>/modifier/', views.admin_dossier_edit, name='admin_dossier_edit'),
     path('dossiers/<int:pk>/supprimer/', views.admin_dossier_delete, name='admin_dossier_delete'),
