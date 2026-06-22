@@ -615,8 +615,13 @@ def admin_etape_globale_delete(request, pk):
 def admin_dossiers(request):
     dossiers = Dossier.objects.select_related('client', 'intitule').all()
     dossiers_data = [{'dossier': d, 'is_complete': d.is_complete()} for d in dossiers]
-    return render(request, 'adminpanel/dossiers/list.html', {'dossiers_data': dossiers_data})
-
+    etapes_tech = EtapeGlobale.objects.filter(type='technique')
+    etapes_morc = EtapeGlobale.objects.filter(type='morcellement')
+    return render(request, 'adminpanel/dossiers/list.html', {
+        'dossiers_data': dossiers_data,
+        'etapes_tech': etapes_tech,
+        'etapes_morc': etapes_morc,
+    })
 
 @admin_required
 def admin_dossier_create(request):
@@ -839,18 +844,19 @@ def admin_clients_bulk(request):
         elif action == 'desactiver':
             users.exclude(pk=request.user.pk).update(is_active=False)
             messages.success(request, "Utilisateurs désactivés.")
+        elif action == 'sexe_masculin':
+            users.update(sexe='masculin')
+            messages.success(request, "Sexe mis à jour : Masculin.")
+        elif action == 'sexe_feminin':
+            users.update(sexe='feminin')
+            messages.success(request, "Sexe mis à jour : Féminin.")
+        elif action == 'sexe_plusieurs':
+            users.update(sexe='plusieurs')
+            messages.success(request, "Sexe mis à jour : Plusieurs.")
         elif action == 'supprimer':
+            count = users.exclude(pk=request.user.pk).count()
             users.exclude(pk=request.user.pk).delete()
-            messages.success(request, "Utilisateurs supprimés.")
-        elif action == 'role_client':
-            users.update(role='client', is_staff=False)
-            messages.success(request, "Rôle mis à jour : Client.")
-        elif action == 'role_commercial':
-            users.update(role='commercial', is_staff=True)
-            messages.success(request, "Rôle mis à jour : Commercial.")
-        elif action == 'role_admin':
-            users.update(role='admin', is_staff=True)
-            messages.success(request, "Rôle mis à jour : Administrateur.")
+            messages.success(request, f"{count} utilisateur(s) supprimé(s).")
     return redirect('admin_clients')
 
 
@@ -863,14 +869,55 @@ def admin_dossiers_bulk(request):
             messages.error(request, "Aucun dossier sélectionné.")
             return redirect('admin_dossiers')
         dossiers = Dossier.objects.filter(pk__in=ids)
+
         if action == 'supprimer':
             count = dossiers.count()
             dossiers.delete()
             messages.success(request, f"{count} dossier(s) supprimé(s).")
+
         elif action == 'export_excel':
             return _export_dossiers_excel(dossiers)
-    return redirect('admin_dossiers')
 
+        elif action == 'avancement_tech':
+            etape_ids = request.POST.getlist('etapes_tech_ids')
+            for dossier in dossiers:
+                for etape in EtapeGlobale.objects.filter(type='technique'):
+                    cochee, _ = EtapeCochee.objects.get_or_create(dossier=dossier, etape=etape)
+                    should_done = str(etape.pk) in etape_ids
+                    if cochee.is_done != should_done:
+                        cochee.is_done = should_done
+                        cochee.done_at = timezone.now() if should_done else None
+                        cochee.done_by = request.user if should_done else None
+                        cochee.save()
+                DossierHistorique.objects.create(
+                    dossier=dossier,
+                    message=f"Avancement technique mis à jour en masse ({dossier.get_progression_technique()}%)",
+                    created_by=request.user
+                )
+            messages.success(request, f"Avancement technique appliqué à {dossiers.count()} dossier(s).")
+
+        elif action == 'avancement_morc':
+            if not all(d.is_technique_complete() for d in dossiers):
+                messages.error(request, "Certains dossiers sélectionnés n'ont pas leur technique à 100%. Impossible d'appliquer le morcellement.")
+                return redirect('admin_dossiers')
+            etape_ids = request.POST.getlist('etapes_morc_ids')
+            for dossier in dossiers:
+                for etape in EtapeGlobale.objects.filter(type='morcellement'):
+                    cochee, _ = EtapeCochee.objects.get_or_create(dossier=dossier, etape=etape)
+                    should_done = str(etape.pk) in etape_ids
+                    if cochee.is_done != should_done:
+                        cochee.is_done = should_done
+                        cochee.done_at = timezone.now() if should_done else None
+                        cochee.done_by = request.user if should_done else None
+                        cochee.save()
+                DossierHistorique.objects.create(
+                    dossier=dossier,
+                    message=f"Avancement morcellement mis à jour en masse ({dossier.get_progression_morcellement()}%)",
+                    created_by=request.user
+                )
+            messages.success(request, f"Avancement morcellement appliqué à {dossiers.count()} dossier(s).")
+
+    return redirect('admin_dossiers')
 
 @admin_required
 def admin_dossiers_export_excel(request):

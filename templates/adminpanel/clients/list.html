@@ -3,7 +3,7 @@
 {% block breadcrumb %}Utilisateurs{% endblock %}
 
 {% block topbar_actions %}
-<a href="{% url 'admin_clients_template' %}" class="topbar-btn" style="border:1.5px solid var(--border);color:var(--text);background:#fff">⬇ Modèle Excel</a>
+<a href="{% url 'admin_clients_template' %}" class="topbar-btn" style="border:1.5px solid var(--border);color:var(--text);background:#fff">⬇ Modèle</a>
 <a href="{% url 'admin_clients_import' %}" class="topbar-btn" style="border:1.5px solid var(--border);color:var(--text);background:#fff">⬆ Importer</a>
 <a href="{% url 'admin_clients_export' %}" class="topbar-btn" style="border:1.5px solid var(--border);color:var(--text);background:#fff">⬇ Exporter</a>
 <a href="{% url 'admin_client_create' %}" class="topbar-btn topbar-btn-primary">+ Créer</a>
@@ -11,32 +11,51 @@
 
 {% block extra_css %}
 <style>
-.filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
-.search-input{flex:1;min-width:200px;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
+.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.search-input{flex:1;min-width:180px;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
 .search-input:focus{border-color:var(--navy)}
-.role-btn{padding:7px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;border:1.5px solid var(--border);background:#fff;cursor:pointer;transition:all .2s;letter-spacing:.5px;color:var(--text)}
+.role-btn{padding:7px 12px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;border:1.5px solid var(--border);background:#fff;cursor:pointer;transition:all .2s;letter-spacing:.3px;color:var(--text);white-space:nowrap}
 .role-btn.active,.role-btn:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
 
-/* BULK BAR */
-.bulk-bar{display:none;background:linear-gradient(135deg,rgba(11,31,58,.06),rgba(193,18,31,.04));border:1.5px solid rgba(11,31,58,.15);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;align-items:center;gap:12px;flex-wrap:wrap}
+/* BULK */
+.bulk-bar{display:none;background:linear-gradient(135deg,rgba(11,31,58,.06),rgba(193,18,31,.04));border:1.5px solid rgba(11,31,58,.15);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;align-items:center;gap:10px;flex-wrap:wrap}
 .bulk-bar.visible{display:flex}
 .bulk-count{font-size:13px;font-weight:600;color:var(--navy);flex-shrink:0}
 .bulk-select{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:7px 12px;font-size:13px;font-family:inherit;color:var(--text);outline:none;cursor:pointer}
-.bulk-select:focus{border-color:var(--navy)}
-.bulk-apply{padding:7px 18px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;border:none;cursor:pointer;letter-spacing:.5px;text-transform:uppercase;transition:all .2s}
-.bulk-apply-primary{background:var(--gradient);color:#fff}
-.bulk-apply-primary:hover{opacity:.9}
-.bulk-apply-danger{background:rgba(193,18,31,.1);color:var(--red);border:1.5px solid rgba(193,18,31,.2)}
-.bulk-apply-danger:hover{background:var(--red);color:#fff}
-.bulk-cancel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;margin-left:auto}
-.bulk-cancel:hover{color:var(--navy)}
-
-/* CHECKBOX */
-.row-check{width:16px;height:16px;accent-color:var(--navy);cursor:pointer}
-.select-all-check{width:16px;height:16px;accent-color:var(--navy);cursor:pointer}
-tr.selected-row{background:rgba(11,31,58,.04) !important}
-
+.bulk-apply{padding:7px 16px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;border:none;cursor:pointer;letter-spacing:.3px;text-transform:uppercase;transition:all .2s;white-space:nowrap}
+.bulk-primary{background:var(--gradient);color:#fff}.bulk-primary:hover{opacity:.9}
+.bulk-danger{background:rgba(193,18,31,.1);color:var(--red);border:1.5px solid rgba(193,18,31,.2)}.bulk-danger:hover{background:var(--red);color:#fff}
+.bulk-cancel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;margin-left:auto;line-height:1}
+.row-check,.select-all-check{width:15px;height:15px;accent-color:var(--navy);cursor:pointer}
+tr.selected-row td{background:rgba(11,31,58,.03)}
 .name-upper{text-transform:uppercase;font-weight:600}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:#fff;border-radius:var(--radius);padding:32px;max-width:400px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,.2)}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--navy);margin-bottom:20px}
+
+/* RESPONSIVE TABLE */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%}
+.table{min-width:600px}
+
+/* CARDS MOBILE */
+@media(max-width:640px){
+  .filter-bar{flex-direction:column;align-items:stretch}
+  .search-input{min-width:100%;width:100%}
+  .filter-btns{display:flex;gap:6px;flex-wrap:wrap}
+  .role-btn{flex:1;text-align:center;min-width:60px}
+  .table-wrap{display:none}
+  .mobile-cards{display:block}
+  .mobile-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;position:relative}
+  .mobile-card-name{font-weight:700;font-size:15px;color:var(--navy);text-transform:uppercase;margin-bottom:4px}
+  .mobile-card-username{font-size:12px;color:var(--muted);margin-bottom:8px}
+  .mobile-card-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+  .mobile-card-actions{display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+  .mobile-card-check{position:absolute;top:14px;right:14px}
+}
+@media(min-width:641px){.mobile-cards{display:none}}
 </style>
 {% endblock %}
 
@@ -46,188 +65,169 @@ tr.selected-row{background:rgba(11,31,58,.04) !important}
 </div>
 
 <div class="filter-bar">
-  <input type="text" class="search-input" id="searchInput" placeholder="Rechercher par nom, identifiant, email, ville..." oninput="filterTable()">
-  <button class="role-btn active" onclick="filterRole('',this)">Tous</button>
-  <button class="role-btn" onclick="filterRole('admin',this)">Admin</button>
-  <button class="role-btn" onclick="filterRole('commercial',this)">Commercial</button>
-  <button class="role-btn" onclick="filterRole('client',this)">Client</button>
-  <button class="role-btn" onclick="sortAZ()">A → Z</button>
+  <input type="text" class="search-input" id="searchInput" placeholder="Rechercher..." oninput="filterTable()">
+  <div class="filter-btns">
+    <button class="role-btn active" onclick="filterRole('',this)">Tous</button>
+    <button class="role-btn" onclick="filterRole('admin',this)">Admin</button>
+    <button class="role-btn" onclick="filterRole('commercial',this)">Commercial</button>
+    <button class="role-btn" onclick="filterRole('client',this)">Client</button>
+    <button class="role-btn" onclick="sortAZ()">A→Z</button>
+  </div>
 </div>
 
-<!-- BULK ACTION BAR -->
 <div class="bulk-bar" id="bulkBar">
   <span class="bulk-count" id="bulkCount">0 sélectionné(s)</span>
   <select class="bulk-select" id="bulkAction">
-    <option value="">-- Choisir une action --</option>
+    <option value="">-- Action groupée --</option>
     <option value="activer">Activer les comptes</option>
     <option value="desactiver">Désactiver les comptes</option>
-    <option value="role_client">Changer rôle → Client</option>
-    <option value="role_commercial">Changer rôle → Commercial</option>
-    <option value="role_admin">Changer rôle → Admin</option>
+    <option value="sexe_masculin">Sexe → Masculin</option>
+    <option value="sexe_feminin">Sexe → Féminin</option>
+    <option value="sexe_plusieurs">Sexe → Plusieurs</option>
     <option value="supprimer">Supprimer</option>
   </select>
-  <button class="bulk-apply bulk-apply-primary" onclick="applyBulk()">Appliquer</button>
-  <button class="bulk-apply bulk-apply-danger" id="bulkSuppr" onclick="applyBulkDanger()" style="display:none">Supprimer la sélection</button>
-  <button class="bulk-cancel" onclick="clearSelection()">✕ Annuler</button>
+  <button class="bulk-apply bulk-primary" onclick="applyBulk()">Appliquer</button>
+  <button class="bulk-cancel" onclick="clearSelection()">✕</button>
 </div>
 
 <form method="post" action="{% url 'admin_clients_bulk' %}" id="bulkForm">
   {% csrf_token %}
   <input type="hidden" name="bulk_action" id="bulkActionHidden">
+
+  <!-- TABLE DESKTOP -->
   <div class="card">
     <div class="table-wrap">
       <table class="table" id="usersTable">
         <thead>
           <tr>
-            {% if request.user.role == 'admin' %}<th style="width:36px"><input type="checkbox" class="select-all-check" id="selectAll" onchange="toggleAll(this)"></th>{% endif %}
-            <th>Utilisateur</th>
-            <th>Identifiant</th>
-            <th>Contact</th>
-            <th>Ville</th>
-            <th>Rôle</th>
-            <th>Statut</th>
+            {% if request.user.role == 'admin' %}<th style="width:32px"><input type="checkbox" class="select-all-check" id="selectAll" onchange="toggleAll(this)"></th>{% endif %}
+            <th>Utilisateur</th><th>Identifiant</th><th>Tél.</th><th>Ville</th><th>Sexe</th><th>Rôle</th><th>Statut</th>
             {% if request.user.role == 'admin' %}<th>Actions</th>{% endif %}
           </tr>
         </thead>
         <tbody>
           {% for c in clients %}
-          <tr data-role="{{ c.role }}" data-search="{{ c.username|lower }} {{ c.last_name|lower }} {{ c.email|lower }} {{ c.city|lower }} {{ c.phone|lower }}" id="userRow{{ c.pk }}">
-            {% if request.user.role == 'admin' %}
-            <td><input type="checkbox" class="row-check" name="selected_ids" value="{{ c.pk }}" onchange="onCheckChange()"></td>
-            {% endif %}
+          <tr data-role="{{ c.role }}" data-search="{{ c.username|lower }} {{ c.last_name|lower }} {{ c.email|lower }} {{ c.city|lower }} {{ c.phone|lower }}" data-pk="{{ c.pk }}">
+            {% if request.user.role == 'admin' %}<td><input type="checkbox" class="row-check" name="selected_ids" value="{{ c.pk }}" onchange="onCheckChange()"></td>{% endif %}
             <td>
-              <div style="display:flex;align-items:center;gap:10px">
-                <div style="width:32px;height:32px;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0">{{ c.get_initials }}</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:30px;height:30px;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0">{{ c.get_initials }}</div>
                 <div>
                   <div class="name-upper">{{ c.last_name|default:"—" }}</div>
                   <div style="font-size:11px;color:var(--muted)">{{ c.email|default:"" }}</div>
                 </div>
               </div>
             </td>
-            <td><code style="font-size:12px;background:var(--gray);padding:2px 8px;border-radius:4px">{{ c.username }}</code></td>
+            <td><code style="font-size:11px;background:var(--gray);padding:2px 7px;border-radius:4px">{{ c.username }}</code></td>
             <td style="font-size:13px">{{ c.phone|default:"—" }}</td>
             <td style="font-size:13px">{{ c.city|default:"—" }}</td>
-            <td>
-              <span class="badge {% if c.role == 'admin' %}badge-red{% elif c.role == 'commercial' %}badge-blue{% else %}badge-gray{% endif %}">
-                {{ c.get_role_display }}
-              </span>
-            </td>
+            <td><span class="badge badge-gray" style="font-size:10px">{{ c.get_sexe_display }}</span></td>
+            <td><span class="badge {% if c.role == 'admin' %}badge-red{% elif c.role == 'commercial' %}badge-blue{% else %}badge-gray{% endif %}">{{ c.get_role_display }}</span></td>
             <td><span class="badge {% if c.is_active %}badge-green{% else %}badge-red{% endif %}">{% if c.is_active %}Actif{% else %}Inactif{% endif %}</span></td>
             {% if request.user.role == 'admin' %}
             <td style="white-space:nowrap">
               <a href="{% url 'admin_client_edit' c.pk %}" class="btn btn-outline btn-xs">Modifier</a>
               {% if c.pk != request.user.pk %}
-              <form method="post" action="{% url 'admin_client_delete' c.pk %}" style="display:inline" onsubmit="return confirm('Supprimer cet utilisateur ?')">
-                {% csrf_token %}<button type="submit" class="btn btn-danger btn-xs">✕</button>
-              </form>
+              <form method="post" action="{% url 'admin_client_delete' c.pk %}" style="display:inline" onsubmit="return confirm('Supprimer ?')">{% csrf_token %}<button type="submit" class="btn btn-danger btn-xs">✕</button></form>
               {% endif %}
             </td>
             {% endif %}
           </tr>
           {% empty %}
-          <tr><td colspan="8" style="text-align:center;padding:48px;color:var(--muted)">Aucun utilisateur</td></tr>
+          <tr><td colspan="9" style="text-align:center;padding:48px;color:var(--muted)">Aucun utilisateur</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+  </div>
+
+  <!-- CARDS MOBILE -->
+  <div class="mobile-cards" id="mobileCards">
+    {% for c in clients %}
+    <div class="mobile-card" data-role="{{ c.role }}" data-search="{{ c.username|lower }} {{ c.last_name|lower }} {{ c.email|lower }} {{ c.city|lower }}">
+      {% if request.user.role == 'admin' %}
+      <input type="checkbox" class="row-check mobile-card-check" name="selected_ids" value="{{ c.pk }}" onchange="onCheckChange()">
+      {% endif %}
+      <div class="mobile-card-name">{{ c.last_name|default:"—" }}</div>
+      <div class="mobile-card-username">@{{ c.username }}</div>
+      <div class="mobile-card-row"><span style="color:var(--muted)">Téléphone</span><span>{{ c.phone|default:"—" }}</span></div>
+      <div class="mobile-card-row"><span style="color:var(--muted)">Ville</span><span>{{ c.city|default:"—" }}</span></div>
+      <div class="mobile-card-row">
+        <span style="color:var(--muted)">Rôle</span>
+        <span class="badge {% if c.role == 'admin' %}badge-red{% elif c.role == 'commercial' %}badge-blue{% else %}badge-gray{% endif %}">{{ c.get_role_display }}</span>
+      </div>
+      <div class="mobile-card-row">
+        <span style="color:var(--muted)">Statut</span>
+        <span class="badge {% if c.is_active %}badge-green{% else %}badge-red{% endif %}">{% if c.is_active %}Actif{% else %}Inactif{% endif %}</span>
+      </div>
+      {% if request.user.role == 'admin' %}
+      <div class="mobile-card-actions">
+        <a href="{% url 'admin_client_edit' c.pk %}" class="btn btn-outline btn-xs">Modifier</a>
+        {% if c.pk != request.user.pk %}
+        <form method="post" action="{% url 'admin_client_delete' c.pk %}" style="display:inline" onsubmit="return confirm('Supprimer ?')">{% csrf_token %}<button type="submit" class="btn btn-danger btn-xs">Supprimer</button></form>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
   </div>
 </form>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-let currentRole = '';
-
-function filterRole(role, btn){
-  currentRole = role;
-  document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  filterTable();
-}
-
+let currentRole='';
+function filterRole(role,btn){currentRole=role;document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');filterTable();}
 function filterTable(){
-  const q = document.getElementById('searchInput').value.toLowerCase().trim();
-  const rows = document.querySelectorAll('#usersTable tbody tr[data-role]');
-  let visible = 0;
-  rows.forEach(row=>{
-    const matchRole = !currentRole || row.dataset.role === currentRole;
-    const matchSearch = !q || row.dataset.search.includes(q);
-    const show = matchRole && matchSearch;
-    row.style.display = show ? '' : 'none';
-    if(show) visible++;
-  });
-  document.getElementById('countLabel').textContent = visible + ' utilisateur' + (visible > 1 ? 's' : '');
-}
-
-function sortAZ(){
-  const tbody = document.querySelector('#usersTable tbody');
-  const rows = Array.from(tbody.querySelectorAll('tr[data-role]'));
-  rows.sort((a,b)=>{
-    const na = a.querySelector('.name-upper')?.textContent.trim().toLowerCase() || '';
-    const nb = b.querySelector('.name-upper')?.textContent.trim().toLowerCase() || '';
-    return na.localeCompare(nb);
-  });
-  rows.forEach(r=>tbody.appendChild(r));
-}
-
-// ── BULK SELECTION ──
-function onCheckChange(){
-  const checked = document.querySelectorAll('.row-check:checked');
-  const total = checked.length;
-  const bulkBar = document.getElementById('bulkBar');
-  document.getElementById('bulkCount').textContent = total + ' sélectionné' + (total>1?'s':'');
-  bulkBar.classList.toggle('visible', total > 0);
+  const q=document.getElementById('searchInput').value.toLowerCase().trim();
+  let visible=0;
   document.querySelectorAll('#usersTable tbody tr[data-role]').forEach(row=>{
-    const cb = row.querySelector('.row-check');
-    row.classList.toggle('selected-row', cb && cb.checked);
+    const show=(!currentRole||row.dataset.role===currentRole)&&(!q||row.dataset.search.includes(q));
+    row.style.display=show?'':'none';if(show)visible++;
   });
-  const selectAll = document.getElementById('selectAll');
-  const allVisible = Array.from(document.querySelectorAll('#usersTable tbody tr[data-role]'))
-    .filter(r=>r.style.display!=='none')
-    .map(r=>r.querySelector('.row-check'))
-    .filter(Boolean);
-  selectAll.indeterminate = total > 0 && total < allVisible.length;
-  selectAll.checked = total > 0 && total === allVisible.length;
+  document.querySelectorAll('.mobile-card[data-role]').forEach(card=>{
+    const show=(!currentRole||card.dataset.role===currentRole)&&(!q||card.dataset.search.includes(q));
+    card.style.display=show?'':'none';
+  });
+  document.getElementById('countLabel').textContent=visible+' utilisateur'+(visible>1?'s':'');
 }
-
+function sortAZ(){
+  const tbody=document.querySelector('#usersTable tbody');
+  Array.from(tbody.querySelectorAll('tr[data-role]')).sort((a,b)=>{
+    return (a.querySelector('.name-upper')?.textContent.trim()||'').localeCompare(b.querySelector('.name-upper')?.textContent.trim()||'');
+  }).forEach(r=>tbody.appendChild(r));
+}
+function onCheckChange(){
+  const checked=document.querySelectorAll('.row-check:checked');
+  const total=checked.length;
+  document.getElementById('bulkCount').textContent=total+' sélectionné'+(total>1?'s':'');
+  document.getElementById('bulkBar').classList.toggle('visible',total>0);
+  document.querySelectorAll('#usersTable tbody tr[data-role]').forEach(row=>{
+    const cb=row.querySelector('.row-check');row.classList.toggle('selected-row',cb&&cb.checked);
+  });
+  const sa=document.getElementById('selectAll');if(!sa)return;
+  const allVis=Array.from(document.querySelectorAll('#usersTable tbody tr[data-role]')).filter(r=>r.style.display!=='none').map(r=>r.querySelector('.row-check')).filter(Boolean);
+  sa.indeterminate=total>0&&total<allVis.length;sa.checked=total>0&&total===allVis.length;
+}
 function toggleAll(masterCb){
-  const visible = Array.from(document.querySelectorAll('#usersTable tbody tr[data-role]'))
-    .filter(r=>r.style.display!=='none');
-  visible.forEach(row=>{
-    const cb = row.querySelector('.row-check');
-    if(cb) cb.checked = masterCb.checked;
-    row.classList.toggle('selected-row', masterCb.checked);
-  });
-  onCheckChange();
+  Array.from(document.querySelectorAll('#usersTable tbody tr[data-role]')).filter(r=>r.style.display!=='none').forEach(row=>{
+    const cb=row.querySelector('.row-check');if(cb){cb.checked=masterCb.checked;row.classList.toggle('selected-row',masterCb.checked);}
+  });onCheckChange();
 }
-
 function applyBulk(){
-  const action = document.getElementById('bulkAction').value;
-  if(!action){ alert('Veuillez choisir une action.'); return; }
-  const checked = document.querySelectorAll('.row-check:checked');
-  if(checked.length === 0){ alert('Aucun utilisateur sélectionné.'); return; }
-  if(action === 'supprimer' && !confirm(`Supprimer ${checked.length} utilisateur(s) ? Cette action est irréversible.`)) return;
-  document.getElementById('bulkActionHidden').value = action;
+  const action=document.getElementById('bulkAction').value;
+  if(!action){alert('Choisissez une action.');return;}
+  const checked=document.querySelectorAll('.row-check:checked');
+  if(checked.length===0){alert('Aucun utilisateur sélectionné.');return;}
+  if(action==='supprimer'&&!confirm(`Supprimer ${checked.length} utilisateur(s) ?`))return;
+  document.getElementById('bulkActionHidden').value=action;
   document.getElementById('bulkForm').submit();
 }
-
-function applyBulkDanger(){
-  if(!confirm('Supprimer les utilisateurs sélectionnés ?')) return;
-  document.getElementById('bulkActionHidden').value = 'supprimer';
-  document.getElementById('bulkForm').submit();
-}
-
 function clearSelection(){
   document.querySelectorAll('.row-check').forEach(cb=>cb.checked=false);
-  const sa = document.getElementById('selectAll');
-  if(sa){ sa.checked=false; sa.indeterminate=false; }
+  const sa=document.getElementById('selectAll');if(sa){sa.checked=false;sa.indeterminate=false;}
   document.querySelectorAll('.selected-row').forEach(r=>r.classList.remove('selected-row'));
   document.getElementById('bulkBar').classList.remove('visible');
 }
-
-document.getElementById('bulkAction')?.addEventListener('change', function(){
-  const isDanger = this.value === 'supprimer';
-  document.getElementById('bulkSuppr').style.display = isDanger ? 'inline-block' : 'none';
-});
 </script>
 {% endblock %}

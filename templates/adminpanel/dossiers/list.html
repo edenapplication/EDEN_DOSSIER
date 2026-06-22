@@ -10,43 +10,69 @@
 
 {% block extra_css %}
 <style>
-.filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
-.search-input{flex:1;min-width:220px;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
+.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.search-input{flex:1;min-width:180px;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
 .search-input:focus{border-color:var(--navy)}
-.status-btn{padding:7px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;border:1.5px solid var(--border);background:#fff;cursor:pointer;transition:all .2s;letter-spacing:.5px;color:var(--text)}
+.status-btn{padding:7px 12px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;border:1.5px solid var(--border);background:#fff;cursor:pointer;transition:all .2s;white-space:nowrap;color:var(--text)}
 .status-btn.active,.status-btn:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
 .pct-cell{text-align:center}
-.pct-num{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:400;line-height:1}
-.pct-bar-mini{height:4px;background:var(--gray);border-radius:100px;overflow:hidden;margin-top:5px;width:72px}
+.pct-num{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:400;line-height:1}
+.pct-bar-mini{height:4px;background:var(--gray);border-radius:100px;overflow:hidden;margin-top:4px;width:60px}
 .pct-bar-mini-fill{height:100%;border-radius:100px}
 .pct-tech-fill{background:linear-gradient(90deg,#0B1F3A,#C1121F)}
 .pct-morc-fill{background:linear-gradient(90deg,#123C6D,#4B3A7A)}
 
-/* BULK BAR */
-.bulk-bar{display:none;background:linear-gradient(135deg,rgba(11,31,58,.06),rgba(193,18,31,.04));border:1.5px solid rgba(11,31,58,.15);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;align-items:center;gap:12px;flex-wrap:wrap}
+/* BULK */
+.bulk-bar{display:none;background:linear-gradient(135deg,rgba(11,31,58,.06),rgba(193,18,31,.04));border:1.5px solid rgba(11,31,58,.15);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;align-items:center;gap:10px;flex-wrap:wrap}
 .bulk-bar.visible{display:flex}
 .bulk-count{font-size:13px;font-weight:600;color:var(--navy);flex-shrink:0}
-.bulk-select{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:7px 12px;font-size:13px;font-family:inherit;color:var(--text);outline:none;cursor:pointer}
-.bulk-apply{padding:7px 18px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;border:none;cursor:pointer;letter-spacing:.5px;text-transform:uppercase;transition:all .2s}
-.bulk-apply-primary{background:var(--gradient);color:#fff}
-.bulk-apply-primary:hover{opacity:.9}
-.bulk-apply-danger{background:rgba(193,18,31,.1);color:var(--red);border:1.5px solid rgba(193,18,31,.2)}
-.bulk-apply-danger:hover{background:var(--red);color:#fff}
-.bulk-cancel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;margin-left:auto}
+.bulk-select{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:7px 11px;font-size:13px;font-family:inherit;color:var(--text);outline:none;cursor:pointer}
+.bulk-apply{padding:7px 16px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;border:none;cursor:pointer;text-transform:uppercase;transition:all .2s;white-space:nowrap}
+.bulk-primary{background:var(--gradient);color:#fff}.bulk-primary:hover{opacity:.9}
+.bulk-danger{background:rgba(193,18,31,.1);color:var(--red);border:1.5px solid rgba(193,18,31,.2)}.bulk-danger:hover{background:var(--red);color:#fff}
+.bulk-cancel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;margin-left:auto;line-height:1}
+.row-check,.select-all-check{width:15px;height:15px;accent-color:var(--navy);cursor:pointer}
+tr.selected-row td{background:rgba(11,31,58,.03)}
+.client-upper{text-transform:uppercase;font-weight:500}
 
-/* CHECKBOX */
-.row-check{width:16px;height:16px;accent-color:var(--navy);cursor:pointer}
-.select-all-check{width:16px;height:16px;accent-color:var(--navy);cursor:pointer}
-tr.selected-row td{background:rgba(11,31,58,.04)}
+/* MODAL AVANCEMENT */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:600;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal-box{background:#fff;border-radius:var(--radius);padding:28px;max-width:500px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--navy);margin-bottom:6px}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+.etape-check-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.etape-check-row:last-child{border-bottom:none}
+.etape-check-box{width:16px;height:16px;accent-color:var(--navy);cursor:pointer;flex-shrink:0}
+.etape-label{flex:1;font-size:13.5px;color:var(--text)}
+.etape-pct-label{font-size:13px;color:var(--muted)}
 
-.client-name-cell{text-transform:uppercase;font-weight:500}
+/* RESPONSIVE */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%}
+.table{min-width:750px}
 
-@media(max-width:768px){
+@media(max-width:640px){
   .filter-bar{flex-direction:column;align-items:stretch}
-  .search-input,.status-btn{width:100%;min-width:100%}
-  .table{min-width:900px}
-  .pct-bar-mini{width:50px}
+  .search-input{min-width:100%;width:100%}
+  .filter-btns-dossier{display:flex;gap:6px;flex-wrap:wrap}
+  .status-btn{flex:1;text-align:center}
+  .page-header{flex-direction:column;align-items:flex-start;gap:10px}
+  .page-header .btn{font-size:11px;padding:6px 10px}
+  .table-wrap{display:none}
+  .mobile-cards-dos{display:block}
+  .dos-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;position:relative}
+  .dos-card-ref{font-size:11px;color:var(--muted);margin-bottom:2px}
+  .dos-card-title{font-weight:700;font-size:15px;color:var(--navy);margin-bottom:4px}
+  .dos-card-client{font-size:13px;text-transform:uppercase;font-weight:500;margin-bottom:8px}
+  .dos-card-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;color:var(--text)}
+  .dos-card-progress{display:flex;gap:12px;margin:10px 0;flex-wrap:wrap}
+  .dos-card-prog-item{flex:1;min-width:80px;background:var(--cream);border-radius:6px;padding:8px 10px}
+  .dos-card-prog-label{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .dos-card-prog-val{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:var(--navy)}
+  .dos-card-actions{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap}
+  .dos-card-check{position:absolute;top:12px;right:12px}
 }
+@media(min-width:641px){.mobile-cards-dos{display:none}}
 </style>
 {% endblock %}
 
@@ -58,70 +84,110 @@ tr.selected-row td{background:rgba(11,31,58,.04)}
   </div>
   {% if request.user.role == 'admin' %}
   <div style="display:flex;gap:8px;flex-wrap:wrap">
-    <form method="post" action="{% url 'admin_dossiers_supprimer_doublons' %}" onsubmit="return confirm('Supprimer tous les doublons (même intitulé + client + superficie) ? Le plus récent sera supprimé.')">
-      {% csrf_token %}
-      <button type="submit" class="btn btn-danger btn-sm">🗑 Supprimer doublons</button>
+    <form method="post" action="{% url 'admin_dossiers_supprimer_doublons' %}" onsubmit="return confirm('Supprimer les doublons (même intitulé + client + superficie) ?')">
+      {% csrf_token %}<button type="submit" class="btn btn-danger btn-sm">🗑 Doublons</button>
     </form>
-    <button class="btn btn-outline btn-sm" onclick="exportFiltered()">⬇ Exporter Excel (filtrés)</button>
+    <button class="btn btn-outline btn-sm" onclick="exportFiltered()">⬇ Excel filtrés</button>
   </div>
   {% endif %}
 </div>
 
 <div class="filter-bar">
-  <input type="text" class="search-input" id="searchInput" placeholder="Rechercher par référence, intitulé, client..." oninput="filterDossiers()">
-  <button class="status-btn active" onclick="filterStatus('',this)">Tous</button>
-  <button class="status-btn" onclick="filterStatus('encours',this)">En cours</button>
-  <button class="status-btn" onclick="filterStatus('complet',this)">Complet</button>
-  <button class="status-btn" onclick="sortClientsAZ()">Clients A → Z</button>
+  <input type="text" class="search-input" id="searchInput" placeholder="Référence, intitulé, client..." oninput="filterDossiers()">
+  <div class="filter-btns-dossier">
+    <button class="status-btn active" onclick="filterStatus('',this)">Tous</button>
+    <button class="status-btn" onclick="filterStatus('encours',this)">En cours</button>
+    <button class="status-btn" onclick="filterStatus('complet',this)">Complet</button>
+    <button class="status-btn" onclick="sortClientsAZ()">A→Z</button>
+  </div>
 </div>
 
 <!-- BULK BAR -->
 <div class="bulk-bar" id="bulkBar">
   <span class="bulk-count" id="bulkCount">0 sélectionné(s)</span>
-  <select class="bulk-select" id="bulkAction">
-    <option value="">-- Choisir une action --</option>
+  <select class="bulk-select" id="bulkAction" onchange="onBulkActionChange(this)">
+    <option value="">-- Action groupée --</option>
+    <option value="avancement_tech">⚙ Appliquer avancement Technique</option>
+    <option value="avancement_morc">🗺 Appliquer avancement Morcellement</option>
     <option value="export_excel">⬇ Exporter en Excel</option>
     <option value="supprimer">🗑 Supprimer</option>
   </select>
-  <button class="bulk-apply bulk-apply-primary" onclick="applyBulk()">Appliquer</button>
-  <button class="bulk-cancel" onclick="clearSelection()">✕ Annuler</button>
+  <button class="bulk-apply bulk-primary" onclick="applyBulk()">Appliquer</button>
+  <button class="bulk-cancel" onclick="clearSelection()">✕</button>
+</div>
+
+<!-- MODAL AVANCEMENT TECH -->
+<div class="modal-overlay" id="modalTech">
+  <div class="modal-box">
+    <div class="modal-title">⚙ Avancement Technique</div>
+    <div class="modal-sub">Cochez les étapes à appliquer à tous les dossiers sélectionnés</div>
+    <div id="modalTechEtapes">
+      {% for etape in etapes_tech %}
+      <div class="etape-check-row">
+        <input type="checkbox" class="etape-check-box" id="techEtape{{ etape.pk }}" value="{{ etape.pk }}" name="etapes_tech_modal">
+        <label class="etape-label" for="techEtape{{ etape.pk }}">{{ etape.name }}</label>
+        <span class="etape-pct-label">{{ etape.percentage }}%</span>
+      </div>
+      {% empty %}
+      <p style="color:var(--muted);text-align:center;padding:16px">Aucune étape technique définie.</p>
+      {% endfor %}
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="bulk-apply bulk-primary" onclick="submitAvancement('tech')">Appliquer →</button>
+      <button class="bulk-apply" style="background:var(--gray);color:var(--text)" onclick="closeModal('modalTech')">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AVANCEMENT MORC -->
+<div class="modal-overlay" id="modalMorc">
+  <div class="modal-box">
+    <div class="modal-title">🗺 Avancement Morcellement</div>
+    <div class="modal-sub">Cochez les étapes à appliquer. Attention : le technique doit être à 100% sur tous les dossiers sélectionnés.</div>
+    <div id="modalMorcEtapes">
+      {% for etape in etapes_morc %}
+      <div class="etape-check-row">
+        <input type="checkbox" class="etape-check-box" id="morcEtape{{ etape.pk }}" value="{{ etape.pk }}" name="etapes_morc_modal">
+        <label class="etape-label" for="morcEtape{{ etape.pk }}">{{ etape.name }}</label>
+        <span class="etape-pct-label">{{ etape.percentage }}%</span>
+      </div>
+      {% empty %}
+      <p style="color:var(--muted);text-align:center;padding:16px">Aucune étape morcellement définie.</p>
+      {% endfor %}
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="bulk-apply bulk-primary" onclick="submitAvancement('morc')">Appliquer →</button>
+      <button class="bulk-apply" style="background:var(--gray);color:var(--text)" onclick="closeModal('modalMorc')">Annuler</button>
+    </div>
+  </div>
 </div>
 
 <form method="post" action="{% url 'admin_dossiers_bulk' %}" id="bulkForm">
   {% csrf_token %}
   <input type="hidden" name="bulk_action" id="bulkActionHidden">
+  <div id="etapesTechInputs"></div>
+  <div id="etapesMorcInputs"></div>
+
+  <!-- TABLE DESKTOP -->
   <div class="card">
     <div class="table-wrap">
       <table class="table" id="dossiersTable">
         <thead>
           <tr>
-            {% if request.user.role == 'admin' %}
-            <th style="width:36px"><input type="checkbox" class="select-all-check" id="selectAll" onchange="toggleAll(this)"></th>
-            {% endif %}
-            <th>Référence</th>
-            <th>Intitulé</th>
-            <th>Client</th>
-            <th>Superficie</th>
-            <th>Date paiement</th>
-            <th style="text-align:center">Avancement Tech</th>
-            <th style="text-align:center">Avancement Morc.</th>
-            <th>Statut</th>
+            {% if request.user.role == 'admin' %}<th style="width:32px"><input type="checkbox" class="select-all-check" id="selectAll" onchange="toggleAll(this)"></th>{% endif %}
+            <th>Référence</th><th>Intitulé</th><th>Client</th><th>Superficie</th><th>Date paiement</th>
+            <th style="text-align:center">Tech</th><th style="text-align:center">Morc.</th><th>Statut</th>
             {% if request.user.role == 'admin' %}<th>Actions</th>{% endif %}
           </tr>
         </thead>
         <tbody>
           {% for item in dossiers_data %}
           {% with pt=item.dossier.get_progression_technique pm=item.dossier.get_progression_morcellement %}
-          <tr
-            data-pk="{{ item.dossier.pk }}"
-            data-status="{% if item.is_complete %}complet{% else %}encours{% endif %}"
-            data-search="{{ item.dossier.reference|lower }} {{ item.dossier.get_title|lower }} {{ item.dossier.client.last_name|lower }} {{ item.dossier.client.username|lower }}">
-            {% if request.user.role == 'admin' %}
-            <td><input type="checkbox" class="row-check" name="selected_ids" value="{{ item.dossier.pk }}" onchange="onCheckChange()"></td>
-            {% endif %}
+          <tr data-pk="{{ item.dossier.pk }}" data-status="{% if item.is_complete %}complet{% else %}encours{% endif %}" data-search="{{ item.dossier.reference|lower }} {{ item.dossier.get_title|lower }} {{ item.dossier.client.last_name|lower }} {{ item.dossier.client.username|lower }}">
+            {% if request.user.role == 'admin' %}<td><input type="checkbox" class="row-check" name="selected_ids" value="{{ item.dossier.pk }}" onchange="onCheckChange()"></td>{% endif %}
             <td><strong style="font-size:12px;color:var(--navy)">{{ item.dossier.reference }}</strong></td>
-            <td><strong>{{ item.dossier.get_title }}</strong></td>
-            <td class="client-name-cell">{{ item.dossier.client.last_name|default:item.dossier.client.username }}</td>
+            <td>{{ item.dossier.get_title }}</td>
+            <td class="client-upper">{{ item.dossier.client.last_name|default:item.dossier.client.username }}</td>
             <td>{% if item.dossier.superficie %}{{ item.dossier.superficie }} m²{% else %}<span style="color:var(--muted)">—</span>{% endif %}</td>
             <td>{% if item.dossier.date_paiement %}{{ item.dossier.date_paiement|date:"d/m/Y" }}{% else %}<span style="color:var(--muted)">—</span>{% endif %}</td>
             <td class="pct-cell">
@@ -132,11 +198,7 @@ tr.selected-row td{background:rgba(11,31,58,.04)}
               <div class="pct-num" style="color:{% if pm == 100 %}#065f46{% else %}var(--navy){% endif %}">{{ pm }}%</div>
               <div class="pct-bar-mini"><div class="pct-bar-mini-fill pct-morc-fill" style="width:{{ pm }}%"></div></div>
             </td>
-            <td>
-              <span class="badge {% if item.is_complete %}badge-green{% else %}badge-yellow{% endif %}">
-                {% if item.is_complete %}Complet{% else %}En cours{% endif %}
-              </span>
-            </td>
+            <td><span class="badge {% if item.is_complete %}badge-green{% else %}badge-yellow{% endif %}">{% if item.is_complete %}Complet{% else %}En cours{% endif %}</span></td>
             {% if request.user.role == 'admin' %}
             <td style="white-space:nowrap">
               <a href="{% url 'admin_dossier_detail' item.dossier.pk %}" class="btn btn-secondary btn-xs">Gérer</a>
@@ -153,109 +215,165 @@ tr.selected-row td{background:rgba(11,31,58,.04)}
       </table>
     </div>
   </div>
+
+  <!-- CARDS MOBILE -->
+  <div class="mobile-cards-dos">
+    {% for item in dossiers_data %}
+    {% with pt=item.dossier.get_progression_technique pm=item.dossier.get_progression_morcellement %}
+    <div class="dos-card" data-pk="{{ item.dossier.pk }}" data-status="{% if item.is_complete %}complet{% else %}encours{% endif %}" data-search="{{ item.dossier.reference|lower }} {{ item.dossier.get_title|lower }} {{ item.dossier.client.last_name|lower }}">
+      {% if request.user.role == 'admin' %}
+      <input type="checkbox" class="row-check dos-card-check" name="selected_ids" value="{{ item.dossier.pk }}" onchange="onCheckChange()">
+      {% endif %}
+      <div class="dos-card-ref">{{ item.dossier.reference }}</div>
+      <div class="dos-card-title">{{ item.dossier.get_title }}</div>
+      <div class="dos-card-client">{{ item.dossier.client.last_name|default:item.dossier.client.username }}</div>
+      <div class="dos-card-row"><span style="color:var(--muted)">Superficie</span><span>{% if item.dossier.superficie %}{{ item.dossier.superficie }} m²{% else %}—{% endif %}</span></div>
+      <div class="dos-card-row"><span style="color:var(--muted)">Date paiement</span><span>{% if item.dossier.date_paiement %}{{ item.dossier.date_paiement|date:"d/m/Y" }}{% else %}—{% endif %}</span></div>
+      <div class="dos-card-progress">
+        <div class="dos-card-prog-item">
+          <div class="dos-card-prog-label">Technique</div>
+          <div class="dos-card-prog-val">{{ pt }}%</div>
+          <div class="pct-bar-mini" style="width:100%"><div class="pct-bar-mini-fill pct-tech-fill" style="width:{{ pt }}%"></div></div>
+        </div>
+        <div class="dos-card-prog-item">
+          <div class="dos-card-prog-label">Morcellement</div>
+          <div class="dos-card-prog-val">{{ pm }}%</div>
+          <div class="pct-bar-mini" style="width:100%"><div class="pct-bar-mini-fill pct-morc-fill" style="width:{{ pm }}%"></div></div>
+        </div>
+      </div>
+      <div class="dos-card-row">
+        <span style="color:var(--muted)">Statut</span>
+        <span class="badge {% if item.is_complete %}badge-green{% else %}badge-yellow{% endif %}">{% if item.is_complete %}Complet{% else %}En cours{% endif %}</span>
+      </div>
+      {% if request.user.role == 'admin' %}
+      <div class="dos-card-actions">
+        <a href="{% url 'admin_dossier_detail' item.dossier.pk %}" class="btn btn-secondary btn-xs">Gérer</a>
+        <a href="{% url 'admin_dossier_edit' item.dossier.pk %}" class="btn btn-outline btn-xs">Modifier</a>
+        <a href="{% url 'admin_dossier_delete' item.dossier.pk %}" class="btn btn-danger btn-xs">Supprimer</a>
+      </div>
+      {% endif %}
+    </div>
+    {% endwith %}
+    {% empty %}
+    <p style="text-align:center;color:var(--muted);padding:40px">Aucun dossier.</p>
+    {% endfor %}
+  </div>
 </form>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-let currentStatus = '';
-let currentSearch = '';
+let currentStatus='';
+let currentSearch='';
 
-function filterStatus(status, btn){
-  currentStatus = status;
+function filterStatus(status,btn){
+  currentStatus=status;
   document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   filterDossiers();
 }
 
 function filterDossiers(){
-  currentSearch = document.getElementById('searchInput').value.toLowerCase().trim();
-  const rows = document.querySelectorAll('#dossiersTable tbody tr[data-status]');
-  let visible = 0;
-  rows.forEach(row=>{
-    const matchStatus = !currentStatus || row.dataset.status === currentStatus;
-    const matchSearch = !currentSearch || row.dataset.search.includes(currentSearch);
-    const show = matchStatus && matchSearch;
-    row.style.display = show ? '' : 'none';
-    if(show) visible++;
+  currentSearch=document.getElementById('searchInput').value.toLowerCase().trim();
+  let visible=0;
+  document.querySelectorAll('#dossiersTable tbody tr[data-status]').forEach(row=>{
+    const show=(!currentStatus||row.dataset.status===currentStatus)&&(!currentSearch||row.dataset.search.includes(currentSearch));
+    row.style.display=show?'':'none';if(show)visible++;
   });
-  document.getElementById('countLabel').textContent = visible + ' dossier' + (visible > 1 ? 's' : '');
+  document.querySelectorAll('.dos-card[data-status]').forEach(card=>{
+    const show=(!currentStatus||card.dataset.status===currentStatus)&&(!currentSearch||card.dataset.search.includes(currentSearch));
+    card.style.display=show?'':'none';
+  });
+  document.getElementById('countLabel').textContent=visible+' dossier'+(visible>1?'s':'');
 }
 
 function sortClientsAZ(){
-  const tbody = document.querySelector('#dossiersTable tbody');
-  const rows = Array.from(tbody.querySelectorAll('tr[data-status]'));
-  rows.sort((a,b)=>{
-    const ca = a.querySelector('.client-name-cell')?.textContent.trim().toLowerCase() || '';
-    const cb = b.querySelector('.client-name-cell')?.textContent.trim().toLowerCase() || '';
-    return ca.localeCompare(cb);
-  });
-  rows.forEach(r=>tbody.appendChild(r));
+  const tbody=document.querySelector('#dossiersTable tbody');
+  Array.from(tbody.querySelectorAll('tr[data-status]')).sort((a,b)=>{
+    return (a.querySelector('.client-upper')?.textContent.trim()||'').localeCompare(b.querySelector('.client-upper')?.textContent.trim()||'');
+  }).forEach(r=>tbody.appendChild(r));
 }
 
 function exportFiltered(){
-  const visibleIds = Array.from(document.querySelectorAll('#dossiersTable tbody tr[data-status]'))
-    .filter(r=>r.style.display !== 'none')
-    .map(r=>r.dataset.pk)
-    .filter(Boolean);
-  if(visibleIds.length === 0){ alert('Aucun dossier visible à exporter.'); return; }
-  const url = `{% url 'admin_dossiers_export_excel' %}?ids=${visibleIds.join(',')}&status=${currentStatus}&search=${encodeURIComponent(currentSearch)}`;
-  window.location.href = url;
+  const ids=Array.from(document.querySelectorAll('#dossiersTable tbody tr[data-status]')).filter(r=>r.style.display!=='none').map(r=>r.dataset.pk).filter(Boolean);
+  if(!ids.length){alert('Aucun dossier visible.');return;}
+  window.location.href=`{% url 'admin_dossiers_export_excel' %}?ids=${ids.join(',')}&status=${currentStatus}&search=${encodeURIComponent(currentSearch)}`;
 }
 
-// ── BULK SELECTION ──
 function onCheckChange(){
-  const checked = document.querySelectorAll('.row-check:checked');
-  const total = checked.length;
-  document.getElementById('bulkCount').textContent = total + ' sélectionné' + (total>1?'s':'');
-  document.getElementById('bulkBar').classList.toggle('visible', total > 0);
+  const checked=document.querySelectorAll('.row-check:checked');
+  const total=checked.length;
+  document.getElementById('bulkCount').textContent=total+' sélectionné'+(total>1?'s':'');
+  document.getElementById('bulkBar').classList.toggle('visible',total>0);
   document.querySelectorAll('#dossiersTable tbody tr[data-status]').forEach(row=>{
-    const cb = row.querySelector('.row-check');
-    row.classList.toggle('selected-row', cb && cb.checked);
+    const cb=row.querySelector('.row-check');row.classList.toggle('selected-row',cb&&cb.checked);
   });
-  const selectAll = document.getElementById('selectAll');
-  if(!selectAll) return;
-  const allVisible = Array.from(document.querySelectorAll('#dossiersTable tbody tr[data-status]'))
-    .filter(r=>r.style.display!=='none')
-    .map(r=>r.querySelector('.row-check')).filter(Boolean);
-  selectAll.indeterminate = total > 0 && total < allVisible.length;
-  selectAll.checked = total > 0 && total === allVisible.length;
+  const sa=document.getElementById('selectAll');if(!sa)return;
+  const allVis=Array.from(document.querySelectorAll('#dossiersTable tbody tr[data-status]')).filter(r=>r.style.display!=='none').map(r=>r.querySelector('.row-check')).filter(Boolean);
+  sa.indeterminate=total>0&&total<allVis.length;sa.checked=total>0&&total===allVis.length;
 }
 
 function toggleAll(masterCb){
-  const visible = Array.from(document.querySelectorAll('#dossiersTable tbody tr[data-status]'))
-    .filter(r=>r.style.display!=='none');
-  visible.forEach(row=>{
-    const cb = row.querySelector('.row-check');
-    if(cb) cb.checked = masterCb.checked;
-    row.classList.toggle('selected-row', masterCb.checked);
-  });
-  onCheckChange();
+  Array.from(document.querySelectorAll('#dossiersTable tbody tr[data-status]')).filter(r=>r.style.display!=='none').forEach(row=>{
+    const cb=row.querySelector('.row-check');if(cb){cb.checked=masterCb.checked;row.classList.toggle('selected-row',masterCb.checked);}
+  });onCheckChange();
+}
+
+function onBulkActionChange(sel){
+  // reset select to avoid confusion
 }
 
 function applyBulk(){
-  const action = document.getElementById('bulkAction').value;
-  if(!action){ alert('Veuillez choisir une action.'); return; }
-  const checked = document.querySelectorAll('.row-check:checked');
-  if(checked.length === 0){ alert('Aucun dossier sélectionné.'); return; }
+  const action=document.getElementById('bulkAction').value;
+  if(!action){alert('Choisissez une action.');return;}
+  const checked=document.querySelectorAll('.row-check:checked');
+  if(!checked.length){alert('Aucun dossier sélectionné.');return;}
 
-  if(action === 'export_excel'){
-    const ids = Array.from(checked).map(cb=>cb.value).join(',');
-    window.location.href = `{% url 'admin_dossiers_export_excel' %}?ids=${ids}`;
+  if(action==='avancement_tech'){openModal('modalTech');return;}
+  if(action==='avancement_morc'){openModal('modalMorc');return;}
+
+  if(action==='export_excel'){
+    const ids=Array.from(checked).map(cb=>cb.value).join(',');
+    window.location.href=`{% url 'admin_dossiers_export_excel' %}?ids=${ids}`;
     return;
   }
+  if(action==='supprimer'&&!confirm(`Supprimer ${checked.length} dossier(s) ?`))return;
+  document.getElementById('bulkActionHidden').value=action;
+  document.getElementById('bulkForm').submit();
+}
 
-  if(action === 'supprimer' && !confirm(`Supprimer ${checked.length} dossier(s) ? Cette action est irréversible.`)) return;
-  document.getElementById('bulkActionHidden').value = action;
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+function submitAvancement(type){
+  const modalId=type==='tech'?'modalTech':'modalMorc';
+  const inputName=type==='tech'?'etapes_tech_modal':'etapes_morc_modal';
+  const hiddenContainerId=type==='tech'?'etapesTechInputs':'etapesMorcInputs';
+  const checked=document.querySelectorAll(`#modal${type==='tech'?'Tech':'Morc'} input[name="${inputName}"]:checked`);
+  const container=document.getElementById(hiddenContainerId);
+  container.innerHTML='';
+  checked.forEach(cb=>{
+    const inp=document.createElement('input');
+    inp.type='hidden';
+    inp.name=type==='tech'?'etapes_tech_ids':'etapes_morc_ids';
+    inp.value=cb.value;
+    container.appendChild(inp);
+  });
+  document.getElementById('bulkActionHidden').value='avancement_'+type;
+  closeModal(modalId);
   document.getElementById('bulkForm').submit();
 }
 
 function clearSelection(){
   document.querySelectorAll('.row-check').forEach(cb=>cb.checked=false);
-  const sa = document.getElementById('selectAll');
-  if(sa){ sa.checked=false; sa.indeterminate=false; }
+  const sa=document.getElementById('selectAll');if(sa){sa.checked=false;sa.indeterminate=false;}
   document.querySelectorAll('.selected-row').forEach(r=>r.classList.remove('selected-row'));
   document.getElementById('bulkBar').classList.remove('visible');
+  document.getElementById('bulkAction').value='';
 }
+
+document.querySelectorAll('.modal-overlay').forEach(overlay=>{
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('open');});
+});
 </script>
 {% endblock %}
