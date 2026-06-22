@@ -193,15 +193,34 @@ def admin_intitule_delete(request, pk):
 @admin_required
 def admin_clients(request):
     role_filter = request.GET.get('role', '')
+    sans_dossier = request.GET.get('sans_dossier', '')
+    date_debut = request.GET.get('date_debut', '')
+    date_fin = request.GET.get('date_fin', '')
+
     users = User.objects.all().order_by('-date_joined')
     if role_filter:
         users = users.filter(role=role_filter)
+    if sans_dossier == '1':
+        users = users.filter(dossiers__isnull=True)
+    if date_debut:
+        try:
+            users = users.filter(date_joined__date__gte=datetime.datetime.strptime(date_debut, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if date_fin:
+        try:
+            users = users.filter(date_joined__date__lte=datetime.datetime.strptime(date_fin, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+
     return render(request, 'adminpanel/clients/list.html', {
         'clients': users,
         'role_filter': role_filter,
         'roles': User.ROLE_CHOICES,
+        'sans_dossier': sans_dossier,
+        'date_debut': date_debut,
+        'date_fin': date_fin,
     })
-
 
 @admin_required
 def admin_client_create(request):
@@ -613,7 +632,25 @@ def admin_etape_globale_delete(request, pk):
 # ── DOSSIERS ──
 @admin_required
 def admin_dossiers(request):
+    date_debut = request.GET.get('date_debut', '')
+    date_fin = request.GET.get('date_fin', '')
+    sans_superficie = request.GET.get('sans_superficie', '')
+
     dossiers = Dossier.objects.select_related('client', 'intitule').all()
+
+    if date_debut:
+        try:
+            dossiers = dossiers.filter(created_at__date__gte=datetime.datetime.strptime(date_debut, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if date_fin:
+        try:
+            dossiers = dossiers.filter(created_at__date__lte=datetime.datetime.strptime(date_fin, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if sans_superficie == '1':
+        dossiers = dossiers.filter(superficie__isnull=True)
+
     dossiers_data = [{'dossier': d, 'is_complete': d.is_complete()} for d in dossiers]
     etapes_tech = EtapeGlobale.objects.filter(type='technique')
     etapes_morc = EtapeGlobale.objects.filter(type='morcellement')
@@ -621,6 +658,9 @@ def admin_dossiers(request):
         'dossiers_data': dossiers_data,
         'etapes_tech': etapes_tech,
         'etapes_morc': etapes_morc,
+        'date_debut': date_debut,
+        'date_fin': date_fin,
+        'sans_superficie': sans_superficie,
     })
 
 @admin_required
@@ -916,6 +956,26 @@ def admin_dossiers_bulk(request):
                     created_by=request.user
                 )
             messages.success(request, f"Avancement morcellement appliqué à {dossiers.count()} dossier(s).")
+
+        elif action == 'superficie':
+            nouvelle_superficie = request.POST.get('nouvelle_superficie', '').strip()
+            if not nouvelle_superficie:
+                messages.error(request, "Veuillez saisir une superficie.")
+                return redirect('admin_dossiers')
+            try:
+                val = float(nouvelle_superficie)
+                count = dossiers.count()
+                dossiers.update(superficie=val)
+                for d in Dossier.objects.filter(pk__in=ids):
+                        DossierHistorique.objects.create(
+                        dossier=d,
+                        message=f"Superficie mise à jour en masse : {val} m²",
+                        created_by=request.user
+                    )
+                messages.success(request, f"Superficie ({val} m²) appliquée à {count} dossier(s).")
+            except ValueError:
+                messages.error(request, "Superficie invalide.")
+
 
     return redirect('admin_dossiers')
 

@@ -16,6 +16,10 @@
 .search-input:focus{border-color:var(--navy)}
 .role-btn{padding:7px 12px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;border:1.5px solid var(--border);background:#fff;cursor:pointer;transition:all .2s;letter-spacing:.3px;color:var(--text);white-space:nowrap}
 .role-btn.active,.role-btn:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
+.date-input{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;font-size:13px;font-family:inherit;outline:none;color:var(--text);cursor:pointer}
+.date-input:focus{border-color:var(--navy)}
+.date-label{font-size:12px;color:var(--muted);font-weight:500;white-space:nowrap}
+.filter-period{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 
 /* BULK */
 .bulk-bar{display:none;background:linear-gradient(135deg,rgba(11,31,58,.06),rgba(193,18,31,.04));border:1.5px solid rgba(11,31,58,.15);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;align-items:center;gap:10px;flex-wrap:wrap}
@@ -46,6 +50,8 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
   .search-input{min-width:100%;width:100%}
   .filter-btns{display:flex;gap:6px;flex-wrap:wrap}
   .role-btn{flex:1;text-align:center;min-width:60px}
+  .filter-period{flex-direction:column;align-items:stretch}
+  .date-input{width:100%}
   .table-wrap{display:none}
   .mobile-cards{display:block}
   .mobile-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;position:relative}
@@ -63,6 +69,30 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
 <div class="page-header">
   <div><h1 class="page-title">Utilisateurs</h1><p class="page-sub" id="countLabel">{{ clients.count }} utilisateur{{ clients.count|pluralize }}</p></div>
 </div>
+
+<!-- FILTRES SERVER-SIDE : période + sans dossier -->
+<form method="get" action="" id="periodForm">
+  <div class="filter-bar" style="margin-bottom:10px">
+    <div class="filter-period">
+      <span class="date-label">Inscrit du</span>
+      <input type="date" class="date-input" name="date_debut" value="{{ date_debut }}" onchange="document.getElementById('periodForm').submit()">
+      <span class="date-label">au</span>
+      <input type="date" class="date-input" name="date_fin" value="{{ date_fin }}" onchange="document.getElementById('periodForm').submit()">
+    </div>
+    <div class="filter-btns" style="gap:6px">
+      <button type="submit" name="sans_dossier" value="{% if sans_dossier == '1' %}{% else %}1{% endif %}"
+        class="role-btn {% if sans_dossier == '1' %}active{% endif %}">
+        {% if sans_dossier == '1' %}✓{% endif %} Sans dossier
+      </button>
+      {% if date_debut or date_fin or sans_dossier == '1' %}
+      <a href="{% url 'admin_clients' %}" class="role-btn" style="font-size:11px;padding:6px 10px">✕ Réinitialiser</a>
+      {% endif %}
+    </div>
+    <!-- Préserver les autres params lors du toggle sans_dossier -->
+    {% if date_debut %}<input type="hidden" name="date_debut" value="{{ date_debut }}">{% endif %}
+    {% if date_fin %}<input type="hidden" name="date_fin" value="{{ date_fin }}">{% endif %}
+  </div>
+</form>
 
 <div class="filter-bar">
   <input type="text" class="search-input" id="searchInput" placeholder="Rechercher..." oninput="filterTable()">
