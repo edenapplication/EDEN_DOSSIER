@@ -12,21 +12,21 @@
 {% block extra_css %}
 <style>
 .filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
-.search-input{flex:1;min-width:180px;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
+.search-input{flex:1;min-width:160px;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
 .search-input:focus{border-color:var(--navy)}
-.role-btn{padding:7px 12px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;border:1.5px solid var(--border);background:#fff;cursor:pointer;transition:all .2s;letter-spacing:.3px;color:var(--text);white-space:nowrap}
+.role-btn{padding:7px 11px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;border:1.5px solid var(--border);background:#fff;cursor:pointer;transition:all .2s;letter-spacing:.3px;color:var(--text);white-space:nowrap}
 .role-btn.active,.role-btn:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
-.date-input{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;font-size:13px;font-family:inherit;outline:none;color:var(--text);cursor:pointer}
+.date-input{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;font-size:13px;font-family:inherit;outline:none;color:var(--text);cursor:pointer;max-width:150px}
 .date-input:focus{border-color:var(--navy)}
 .date-label{font-size:12px;color:var(--muted);font-weight:500;white-space:nowrap}
 .filter-period{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 
 /* BULK */
-.bulk-bar{display:none;background:linear-gradient(135deg,rgba(11,31,58,.06),rgba(193,18,31,.04));border:1.5px solid rgba(11,31,58,.15);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;align-items:center;gap:10px;flex-wrap:wrap}
+.bulk-bar{display:none;background:linear-gradient(135deg,rgba(11,31,58,.06),rgba(193,18,31,.04));border:1.5px solid rgba(11,31,58,.15);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:16px;align-items:center;gap:8px;flex-wrap:wrap}
 .bulk-bar.visible{display:flex}
 .bulk-count{font-size:13px;font-weight:600;color:var(--navy);flex-shrink:0}
-.bulk-select{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:7px 12px;font-size:13px;font-family:inherit;color:var(--text);outline:none;cursor:pointer}
-.bulk-apply{padding:7px 16px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;border:none;cursor:pointer;letter-spacing:.3px;text-transform:uppercase;transition:all .2s;white-space:nowrap}
+.bulk-select{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;font-size:13px;font-family:inherit;color:var(--text);outline:none;cursor:pointer;max-width:220px}
+.bulk-apply{padding:7px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;border:none;cursor:pointer;letter-spacing:.3px;text-transform:uppercase;transition:all .2s;white-space:nowrap}
 .bulk-primary{background:var(--gradient);color:#fff}.bulk-primary:hover{opacity:.9}
 .bulk-danger{background:rgba(193,18,31,.1);color:var(--red);border:1.5px solid rgba(193,18,31,.2)}.bulk-danger:hover{background:var(--red);color:#fff}
 .bulk-cancel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;margin-left:auto;line-height:1}
@@ -35,33 +35,31 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
 .name-upper{text-transform:uppercase;font-weight:600}
 
 /* MODAL */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center;padding:16px}
 .modal-overlay.open{display:flex}
-.modal-box{background:#fff;border-radius:var(--radius);padding:32px;max-width:400px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,.2)}
+.modal-box{background:#fff;border-radius:var(--radius);padding:24px;max-width:400px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.2)}
 .modal-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--navy);margin-bottom:20px}
 
-/* RESPONSIVE TABLE */
+/* TABLE */
 .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%}
-.table{min-width:600px}
+.table{min-width:580px}
 
 /* CARDS MOBILE */
-@media(max-width:640px){
-  .filter-bar{flex-direction:column;align-items:stretch}
-  .search-input{min-width:100%;width:100%}
+@media(max-width:700px){
+  .filter-period{flex-wrap:wrap}
+  .date-input{max-width:100%;flex:1;min-width:120px}
   .filter-btns{display:flex;gap:6px;flex-wrap:wrap}
   .role-btn{flex:1;text-align:center;min-width:60px}
-  .filter-period{flex-direction:column;align-items:stretch}
-  .date-input{width:100%}
   .table-wrap{display:none}
   .mobile-cards{display:block}
-  .mobile-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;position:relative}
-  .mobile-card-name{font-weight:700;font-size:15px;color:var(--navy);text-transform:uppercase;margin-bottom:4px}
-  .mobile-card-username{font-size:12px;color:var(--muted);margin-bottom:8px}
-  .mobile-card-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
-  .mobile-card-actions{display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
-  .mobile-card-check{position:absolute;top:14px;right:14px}
 }
-@media(min-width:641px){.mobile-cards{display:none}}
+@media(min-width:701px){.mobile-cards{display:none}}
+.mobile-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;position:relative}
+.mobile-card-name{font-weight:700;font-size:15px;color:var(--navy);text-transform:uppercase;margin-bottom:4px}
+.mobile-card-username{font-size:12px;color:var(--muted);margin-bottom:8px}
+.mobile-card-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+.mobile-card-actions{display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}
+.mobile-card-check{position:absolute;top:14px;right:14px}
 </style>
 {% endblock %}
 
