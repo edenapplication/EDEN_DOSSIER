@@ -189,6 +189,21 @@ class Dossier(models.Model):
             cochee = self.etapes_cochees.filter(etape=eg).first()
             result.append({'etape': eg, 'is_done': cochee.is_done if cochee else False, 'is_auto': cochee.date_auto_coche is not None if cochee else False})
         return result
+    def get_all_clients(self):
+        """Retourne tous les users ayant accès à ce dossier."""
+        return [a.user for a in self.acces.select_related('user').all()]
+
+    def get_clients_display(self):
+        """Noms de tous les clients pour l'affichage liste."""
+        users = self.get_all_clients()
+        return ' / '.join(
+            (u.last_name or u.username).upper() for u in users
+        )
+
+    def get_proprietaire(self):
+        """Retourne le client principal (proprietaire)."""
+        acces = self.acces.filter(est_proprietaire=True).select_related('user').first()
+        return acces.user if acces else self.client
 
 
 class EtapeCochee(models.Model):
@@ -217,3 +232,22 @@ class DossierHistorique(models.Model):
 
     def __str__(self):
         return f"{self.dossier.reference} — {self.message[:50]}"
+    
+class DossierAcces(models.Model):
+    """Lien d'accès entre un utilisateur et un dossier (remplace le champ client direct)."""
+    dossier = models.ForeignKey('Dossier', on_delete=models.CASCADE, related_name='acces')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='dossiers_acces'
+    )
+    est_proprietaire = models.BooleanField(default=False)  # le client principal
+    date_ajout = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('dossier', 'user')
+        ordering = ['-est_proprietaire', 'date_ajout']
+
+    def __str__(self):
+        return f"{self.user.username} → {self.dossier.reference}"
+    

@@ -34,6 +34,23 @@
 .hist-row{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px}
 .hist-row:last-child{border-bottom:none}
 .hist-dot{width:5px;height:5px;border-radius:50%;background:var(--red);flex-shrink:0;margin-top:5px}
+/* ACCÈS */
+.acces-option{padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.acces-option:hover{background:var(--gray)}
+.acces-option:last-child{border-bottom:none}
+.acces-clients-grid{display:flex;flex-direction:column;gap:0}
+/* RESPONSIVE DETAIL */
+@media(max-width:900px){
+  .detail-grid{grid-template-columns:1fr !important}
+}
+@media(max-width:600px){
+  .tabs{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tab{white-space:nowrap;padding:10px 14px;font-size:12px}
+  .donut-wrap{flex-direction:column;align-items:flex-start;gap:14px}
+  .select-all-bar{flex-direction:column;align-items:flex-start;gap:8px}
+  .select-all-btns{flex-wrap:wrap}
+  .page-header{flex-direction:column;align-items:flex-start;gap:10px}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 {% endblock %}
@@ -42,7 +59,11 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">{{ dossier.get_title }}</h1>
-    <p class="page-sub">{{ dossier.reference }} · {{ dossier.client.last_name|default:dossier.client.username }} · {{ dossier.get_jours_existence }} jours</p>
+    <p class="page-sub">
+      {{ dossier.reference }} ·
+      {% for acces in acces_list %}{{ acces.user.last_name|default:acces.user.username }}{% if not forloop.last %} / {% endif %}{% endfor %}
+      · {{ dossier.get_jours_existence }} jours
+    </p>
   </div>
   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
     <span class="badge {% if dossier.is_complete %}badge-green{% else %}badge-yellow{% endif %}">{{ dossier.get_statut_display }}</span>
@@ -56,7 +77,9 @@
   🤖 <strong>Cochage automatique actif</strong> — 1 étape/semaine sauf la dernière (manuelle). Cochage manuel disponible à tout moment.
 </div>
 
-<div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:start">
+<div class="detail-grid" style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:start">
+
+  <!-- ══ COLONNE GAUCHE : Avancement ══ -->
   <div class="card">
     <div class="card-header"><span class="card-title">Avancement du dossier</span></div>
     <div class="card-body">
@@ -65,7 +88,7 @@
         <button class="tab" onclick="switchTab(this,'morc')">🗺 Morcellement {% if morc_locked %}🔒{% endif %}</button>
       </div>
 
-      <!-- ── TECHNIQUE ── -->
+      <!-- TECHNIQUE -->
       <div class="panel active" id="panel-tech">
         <div class="donut-wrap">
           <div class="donut-container">
@@ -97,7 +120,7 @@
         <div class="select-all-bar">
           <span class="select-all-label">Étapes techniques ({{ etapes_tech|length }})</span>
           <div class="select-all-btns">
-            <button type="button" class="select-all-btn" onclick="selectAll('tech', true)" title="Cocher toutes les étapes sauf la dernière">✓ Tout cocher</button>
+            <button type="button" class="select-all-btn" onclick="selectAll('tech', true)">✓ Tout cocher</button>
             <button type="button" class="select-all-btn danger" onclick="selectAll('tech', false)">✕ Tout décocher</button>
           </div>
         </div>
@@ -128,7 +151,7 @@
         {% endfor %}
       </div>
 
-      <!-- ── MORCELLEMENT ── -->
+      <!-- MORCELLEMENT -->
       <div class="panel" id="panel-morc">
         {% if morc_locked %}
         <div class="locked-banner">🔒 Le morcellement est accessible uniquement quand le technique est à 100%.</div>
@@ -163,8 +186,10 @@
         <div class="select-all-bar">
           <span class="select-all-label">Étapes morcellement ({{ etapes_morc|length }})</span>
           <div class="select-all-btns">
-            <button type="button" class="select-all-btn" {% if morc_locked %}disabled style="opacity:.4;cursor:not-allowed"{% else %}onclick="selectAll('morc', true)"{% endif %} title="{% if morc_locked %}Technique non complété{% else %}Cocher toutes les étapes sauf la dernière{% endif %}">✓ Tout cocher</button>
-            <button type="button" class="select-all-btn danger" {% if morc_locked %}disabled style="opacity:.4;cursor:not-allowed"{% else %}onclick="selectAll('morc', false)"{% endif %}>✕ Tout décocher</button>
+            <button type="button" class="select-all-btn"
+              {% if morc_locked %}disabled style="opacity:.4;cursor:not-allowed"{% else %}onclick="selectAll('morc', true)"{% endif %}>✓ Tout cocher</button>
+            <button type="button" class="select-all-btn danger"
+              {% if morc_locked %}disabled style="opacity:.4;cursor:not-allowed"{% else %}onclick="selectAll('morc', false)"{% endif %}>✕ Tout décocher</button>
           </div>
         </div>
         {% endif %}
@@ -196,24 +221,124 @@
     </div>
   </div>
 
+  <!-- ══ COLONNE DROITE ══ -->
   <div style="display:flex;flex-direction:column;gap:16px">
+
     {% if dossier.photo %}
     <div class="card" style="overflow:hidden">
       <img src="{{ dossier.photo.url }}" style="width:100%;height:160px;object-fit:cover">
     </div>
     {% endif %}
+
+    <!-- INFOS DOSSIER -->
     <div class="card">
       <div class="card-header"><span class="card-title">Informations</span></div>
       <div class="card-body">
         <table style="width:100%;font-size:13px;border-collapse:collapse">
-          <tr><td style="padding:7px 0;color:var(--muted)">Client</td><td style="padding:7px 0;font-weight:500">{{ dossier.client.get_full_name|default:dossier.client.username }}</td></tr>
+          <tr>
+            <td style="padding:7px 0;color:var(--muted);white-space:nowrap">Client(s)</td>
+            <td style="padding:7px 0">
+              {% for acces in acces_list %}
+              <div style="display:flex;align-items:center;gap:6px;{% if not forloop.last %}margin-bottom:4px{% endif %}">
+                <span style="font-weight:600;text-transform:uppercase;font-size:12px">{{ acces.user.last_name|default:acces.user.username }}</span>
+                {% if acces.est_proprietaire %}<span class="badge badge-blue" style="font-size:10px;padding:1px 5px">Principal</span>{% endif %}
+              </div>
+              {% endfor %}
+            </td>
+          </tr>
           <tr><td style="padding:7px 0;color:var(--muted)">Référence</td><td style="padding:7px 0;font-size:12px">{{ dossier.reference }}</td></tr>
+          <tr><td style="padding:7px 0;color:var(--muted)">Créé le</td><td style="padding:7px 0">{{ dossier.created_at|date:"d/m/Y" }}</td></tr>
           <tr><td style="padding:7px 0;color:var(--muted)">Existence</td><td style="padding:7px 0"><strong>{{ dossier.get_jours_existence }} jours</strong></td></tr>
           {% if dossier.superficie %}<tr><td style="padding:7px 0;color:var(--muted)">Superficie</td><td style="padding:7px 0">{{ dossier.superficie }} m²</td></tr>{% endif %}
           {% if dossier.date_paiement %}<tr><td style="padding:7px 0;color:var(--muted)">Paiement</td><td style="padding:7px 0">{{ dossier.date_paiement|date:"d/m/Y" }}</td></tr>{% endif %}
         </table>
       </div>
     </div>
+
+    <!-- SECTION ACCÈS -->
+    {% if request.user.role == 'admin' %}
+    <div class="card">
+      <div class="card-header"><span class="card-title">👥 Accès au dossier</span></div>
+
+      <!-- Liste des accès -->
+      <div style="padding:0">
+        {% for acces in acces_list %}
+        <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border)">
+          <div style="width:30px;height:30px;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0">
+            {{ acces.user.get_initials }}
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:13px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              {{ acces.user.last_name|default:acces.user.username }}
+            </div>
+            <div style="font-size:11px;color:var(--muted)">
+              <code style="background:var(--gray);padding:1px 5px;border-radius:3px;font-size:10px">{{ acces.user.username }}</code>
+              {% if acces.user.phone %} · {{ acces.user.phone }}{% endif %}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            {% if acces.est_proprietaire %}
+            <span class="badge badge-blue" style="font-size:10px">Principal</span>
+            {% else %}
+            <span class="badge badge-gray" style="font-size:10px">Partagé</span>
+            <form method="post" action="{% url 'admin_dossier_acces_supprimer' dossier.pk acces.pk %}" style="display:inline"
+              onsubmit="return confirm('Retirer l\'accès de {{ acces.user.username }} ?')">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-danger btn-xs" style="padding:3px 8px;font-size:10px">✕</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+        {% empty %}
+        <div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Aucun accès configuré.</div>
+        {% endfor %}
+      </div>
+
+      <!-- Ajouter un accès — recherche dynamique -->
+      <div style="padding:14px 16px;border-top:1px solid var(--border);background:var(--gray);border-radius:0 0 var(--radius) var(--radius)">
+        <div style="font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Ajouter un accès</div>
+        {% if clients_disponibles %}
+        <div style="position:relative">
+          <input type="text" id="acceSearch"
+            placeholder="Nom ou identifiant..."
+            autocomplete="off"
+            style="width:100%;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;font-family:inherit;outline:none;transition:border-color .2s"
+            oninput="filterAccesClients(this.value)"
+            onfocus="showAccesDrop()"
+            onblur="setTimeout(hideAccesDrop, 200)">
+          <div id="accesDrop"
+            style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow-md);z-index:300;max-height:200px;overflow-y:auto">
+            {% for c in clients_disponibles %}
+            <div class="acces-option"
+              data-search="{{ c.last_name|lower|default:'' }} {{ c.username|lower }}"
+              data-uid="{{ c.pk }}"
+              onmousedown="selectAccesClient({{ c.pk }}, '{{ c.last_name|default:c.username|escapejs }} ({{ c.username }})')">
+              <div style="width:26px;height:26px;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">{{ c.get_initials }}</div>
+              <div style="min-width:0">
+                <div style="font-weight:600;font-size:12px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.last_name|default:"—" }}</div>
+                <div style="font-size:11px;color:var(--muted)">{{ c.username }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <form method="post" action="{% url 'admin_dossier_acces_ajouter' dossier.pk %}" id="acceForm"
+          style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          {% csrf_token %}
+          <input type="hidden" name="user_id" id="acceUserId">
+          <div id="acceSelected"
+            style="display:none;font-size:12px;font-weight:600;color:var(--navy);background:rgba(11,31,58,.07);padding:5px 10px;border-radius:var(--radius-sm);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+          <button type="submit" id="acceSubmit" class="btn btn-secondary btn-sm" style="display:none;white-space:nowrap">+ Ajouter</button>
+          <button type="button" id="acceReset" class="btn btn-outline btn-sm" style="display:none" onclick="resetAccesForm()">✕</button>
+        </form>
+        {% else %}
+        <div style="font-size:12px;color:var(--muted);padding:4px 0">Tous les clients ont déjà accès à ce dossier.</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- HISTORIQUE -->
     <div class="card">
       <div class="card-header"><span class="card-title">Historique</span></div>
       <div style="padding:0 16px;max-height:300px;overflow-y:auto">
@@ -228,8 +353,9 @@
         {% endfor %}
       </div>
     </div>
-  </div>
-</div>
+
+  </div><!-- fin colonne droite -->
+</div><!-- fin grid -->
 {% endblock %}
 
 {% block extra_js %}
@@ -271,9 +397,7 @@ async function toggleEtape(dossierId, etapeId, type){
     });
     const data = await res.json();
     if(data.status === 'error'){ alert(data.message); btn.disabled=false; return; }
-    if(data.status === 'ok'){
-      applyToggleUI(btn, etapeId, type, data);
-    }
+    if(data.status === 'ok'){ applyToggleUI(btn, etapeId, type, data); }
   } catch(e){ console.error(e); }
   btn.disabled = false;
 }
@@ -281,12 +405,10 @@ async function toggleEtape(dossierId, etapeId, type){
 function applyToggleUI(btn, etapeId, type, data){
   const labelEl = document.getElementById('label-'+type+'-'+etapeId);
   if(data.is_done){
-    btn.classList.add('done'); btn.textContent='✓';
-    btn.dataset.done = 'true';
+    btn.classList.add('done'); btn.textContent='✓'; btn.dataset.done='true';
     if(labelEl){ labelEl.style.fontWeight='500'; labelEl.style.color='var(--navy)'; }
   } else {
-    btn.classList.remove('done'); btn.textContent='';
-    btn.dataset.done = 'false';
+    btn.classList.remove('done'); btn.textContent=''; btn.dataset.done='false';
     if(labelEl){ labelEl.style.fontWeight='400'; labelEl.style.color='var(--text)'; }
   }
   const pct = data.progression;
@@ -317,32 +439,70 @@ function applyToggleUI(btn, etapeId, type, data){
 async function selectAll(type, shouldCheck){
   const btns = Array.from(document.querySelectorAll(`[id^="btn-${type}-"]`));
   const lastId = type === 'tech' ? lastTechId : lastMorcId;
-
   for(const btn of btns){
     if(btn.disabled) continue;
     const etapeId = parseInt(btn.dataset.pk);
     const isDone = btn.dataset.done === 'true';
-
-    if(shouldCheck){
-      if(etapeId === lastId) continue;
-      if(isDone) continue;
-    } else {
-      if(!isDone) continue;
-    }
-
+    if(shouldCheck){ if(etapeId === lastId || isDone) continue; }
+    else { if(!isDone) continue; }
     btn.disabled = true;
     try {
       const res = await fetch(`/admin-panel/dossiers/${dossierId}/etape/${etapeId}/toggle/`, {
         method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}
       });
       const data = await res.json();
-      if(data.status === 'ok'){
-        applyToggleUI(btn, etapeId, type, data);
-      }
+      if(data.status === 'ok'){ applyToggleUI(btn, etapeId, type, data); }
     } catch(e){ console.error(e); }
     btn.disabled = false;
     await new Promise(r=>setTimeout(r, 120));
   }
+}
+
+/* ── ACCÈS DYNAMIQUE ── */
+function filterAccesClients(q){
+  q = q.toLowerCase().trim();
+  let hasVisible = false;
+  document.querySelectorAll('.acces-option').forEach(opt=>{
+    const show = !q || opt.dataset.search.includes(q);
+    opt.style.display = show ? '' : 'none';
+    if(show) hasVisible = true;
+  });
+  const drop = document.getElementById('accesDrop');
+  if(drop) drop.style.display = hasVisible ? 'block' : 'none';
+}
+
+function showAccesDrop(){
+  const drop = document.getElementById('accesDrop');
+  if(!drop) return;
+  const opts = document.querySelectorAll('.acces-option');
+  const hasVisible = Array.from(opts).some(o => o.style.display !== 'none');
+  if(hasVisible) drop.style.display = 'block';
+}
+
+function hideAccesDrop(){
+  const drop = document.getElementById('accesDrop');
+  if(drop) drop.style.display = 'none';
+}
+
+function selectAccesClient(uid, label){
+  document.getElementById('acceUserId').value = uid;
+  document.getElementById('acceSearch').value = '';
+  filterAccesClients(''); // reset filtre
+  hideAccesDrop();
+  const sel = document.getElementById('acceSelected');
+  sel.textContent = label;
+  sel.style.display = 'block';
+  document.getElementById('acceSubmit').style.display = 'inline-flex';
+  document.getElementById('acceReset').style.display = 'inline-flex';
+}
+
+function resetAccesForm(){
+  document.getElementById('acceUserId').value = '';
+  document.getElementById('acceSearch').value = '';
+  document.getElementById('acceSelected').style.display = 'none';
+  document.getElementById('acceSubmit').style.display = 'none';
+  document.getElementById('acceReset').style.display = 'none';
+  filterAccesClients('');
 }
 </script>
 {% endblock %}

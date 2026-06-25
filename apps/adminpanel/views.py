@@ -368,9 +368,9 @@ def admin_clients_export(request):
     wb.save(response)
     return response
 
-
 @admin_required
 def admin_clients_import(request):
+    from apps.dossiers.models import DossierAcces
     if request.method == 'POST' and request.FILES.get('excel_file'):
         excel_file = request.FILES['excel_file']
         try:
@@ -393,29 +393,57 @@ def admin_clients_import(request):
         created_users = 0
         updated_users = 0
         created_dossiers = 0
+        skipped_doublons = 0
         errors = []
         seen_clients = {}
 
+        def get_or_create_user_by_username(username):
+            if username in seen_clients:
+                return seen_clients[username], False
+            try:
+                u = User.objects.get(username=username)
+                seen_clients[username] = u
+                return u, False
+            except User.DoesNotExist:
+                u = User.objects.create_user(
+                    username=username,
+                    password='eden',
+                    last_name=username,
+                    role='client',
+                    is_active=True,
+                )
+                seen_clients[username] = u
+                return u, True
+
         for i, row in enumerate(rows, 2):
-            def get(idx):
+            def get(idx, row=row):
                 return _xl_val(row[idx] if len(row) > idx else None)
 
             username = get(0)
             if not username:
                 continue
 
-            password = get(1)
-            nom = get(2)
-            email = get(3)
-            phone = get(4)
-            city = get(5)
-            sexe_raw = get(6).lower()
-            role_raw = get(7).lower()
-            actif_raw = get(8).lower()
+            password   = get(1)
+            nom        = get(2)
+            email      = get(3)
+            phone      = get(4)
+            city       = get(5)
+            sexe_raw   = get(6).lower()
+            role_raw   = get(7).lower()
+            actif_raw  = get(8).lower()
             intitule_name = get(9)
             superficie_raw = get(10)
-            date_raw = get(11)
+            date_raw   = get(11)
             description = get(12)
+
+            # Colonnes 13+ = identifiants supplémentaires
+            identifiants_sup = []
+            col_idx = 13
+            while col_idx < len(row):
+                val = _xl_val(row[col_idx] if len(row) > col_idx else None)
+                if val:
+                    identifiants_sup.append(val)
+                col_idx += 1
 
             sexe_map = {'masculin': 'masculin', 'féminin': 'feminin', 'feminin': 'feminin', 'plusieurs': 'plusieurs'}
             sexe = sexe_map.get(sexe_raw, 'masculin')
@@ -423,7 +451,7 @@ def admin_clients_import(request):
             role = role_map.get(role_raw, 'client')
             is_active = actif_raw not in ('non', 'false', '0', 'no')
 
-            # ── Gestion client ──
+            # ── Client principal ──
             if username in seen_clients:
                 user = seen_clients[username]
             else:
@@ -456,7 +484,6 @@ def admin_clients_import(request):
                         errors.append(f"Ligne {i} : erreur création client '{username}' — {e}")
                         continue
 
-            # ── Gestion dossier ──
             if not intitule_name:
                 continue
 
@@ -478,6 +505,36 @@ def admin_clients_import(request):
                     except ValueError:
                         continue
 
+            # ── Accès supplémentaires ──
+            sup_users = []
+            for sup_username in identifiants_sup:
+                try:
+                    sup_user, was_created = get_or_create_user_by_username(sup_username)
+                    if was_created:
+                        created_users += 1
+                    sup_users.append(sup_user)
+                except Exception as e:
+                    errors.append(f"Ligne {i} : erreur accès supplémentaire '{sup_username}' — {e}")
+
+            # ── Détection doublon ──
+            all_user_ids = sorted([user.pk] + [u.pk for u in sup_users])
+            doublon = False
+            candidats = Dossier.objects.filter(
+                client=user,
+                intitule=intitule,
+                superficie=superficie,
+            ).prefetch_related('acces')
+            for candidat in candidats:
+                candidat_user_ids = sorted(candidat.acces.values_list('user_id', flat=True))
+                if candidat_user_ids == all_user_ids:
+                    doublon = True
+                    break
+
+            if doublon:
+                skipped_doublons += 1
+                continue
+
+            # ── Création dossier ──
             try:
                 d = Dossier(
                     client=user,
@@ -487,19 +544,20 @@ def admin_clients_import(request):
                     description=description,
                 )
                 d.save()
+                DossierAcces.objects.get_or_create(dossier=d, user=user, defaults={'est_proprietaire': True})
+                for sup_user in sup_users:
+                    DossierAcces.objects.get_or_create(dossier=d, user=sup_user, defaults={'est_proprietaire': False})
                 d.planifier_cochages_automatiques()
-                DossierHistorique.objects.create(
-                    dossier=d,
-                    message="Dossier créé par import Excel"
-                )
+                DossierHistorique.objects.create(dossier=d, message="Dossier créé par import Excel")
                 created_dossiers += 1
             except Exception as e:
                 errors.append(f"Ligne {i} : erreur création dossier '{intitule_name}' pour '{username}' — {e}")
 
         msg = (
             f"Import terminé : {created_users} client(s) créé(s), "
-            f"{updated_users} client(s) existant(s) reconnu(s), "
-            f"{created_dossiers} dossier(s) créé(s)."
+            f"{updated_users} client(s) reconnu(s), "
+            f"{created_dossiers} dossier(s) créé(s)"
+            + (f", {skipped_doublons} doublon(s) ignoré(s)" if skipped_doublons else "") + "."
         )
         if errors:
             msg += f" {len(errors)} avertissement(s)."
@@ -509,7 +567,6 @@ def admin_clients_import(request):
         return redirect('admin_clients')
 
     return render(request, 'adminpanel/clients/import_excel.html')
-
 
 @admin_required
 def admin_clients_template(request):
@@ -524,7 +581,8 @@ def admin_clients_template(request):
     headers = [
         'Identifiant*', 'Mot de passe*', 'Nom', 'Email',
         'Téléphone', 'Ville', 'Sexe', 'Rôle', 'Actif',
-        'Intitulé dossier', 'Superficie (m²)', 'Date paiement (YYYY-MM-DD)', 'Notes dossier'
+        'Intitulé dossier', 'Superficie (m²)', 'Date paiement (YYYY-MM-DD)', 'Notes dossier',
+        'Identifiant accès 2', 'Identifiant accès 3', 'Identifiant accès 4',
     ]
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=h)
@@ -534,10 +592,10 @@ def admin_clients_template(request):
     ws.row_dimensions[1].height = 22
 
     examples = [
-        ['jean.mballa', 'pass123', 'Mballa Jean', 'jean@mail.cm', '+237600000001', 'Yaoundé', 'masculin', 'client', 'Oui', 'Lotissement Odza', 600, '2024-03-15', 'Parcelle A12'],
-        ['jean.mballa', '', '', '', '', '', '', '', '', 'Parcelle Bastos', 400, '2024-04-01', 'Lot B5'],
-        ['marie.ngo', 'pass456', 'Ngo Marie', 'marie@mail.cm', '+237600000002', 'Douala', 'feminin', 'client', 'Oui', 'Nkolbisson', 800, '2024-05-10', ''],
-        ['paul.biya', 'pass789', 'Biya Paul', '', '+237600000003', 'Yaoundé', 'masculin', 'client', 'Oui', '', '', '', ''],
+        ['jean.mballa', 'pass123', 'Mballa Jean', 'jean@mail.cm', '+237600000001', 'Yaoundé', 'masculin', 'client', 'Oui', 'Lotissement Odza', 600, '2024-03-15', 'Parcelle A12', '', '', ''],
+        ['jean.mballa', '', '', '', '', '', '', '', '', 'Parcelle Bastos', 400, '2024-04-01', 'Lot B5', 'marie.ngo', '', ''],
+        ['marie.ngo', 'pass456', 'Ngo Marie', 'marie@mail.cm', '+237600000002', 'Douala', 'feminin', 'client', 'Oui', 'Nkolbisson', 800, '2024-05-10', '', 'paul.biya', 'jean.mballa', ''],
+        ['paul.biya', 'pass789', 'Biya Paul', '', '+237600000003', 'Yaoundé', 'masculin', 'client', 'Oui', '', '', '', '', '', '', ''],
     ]
     note_fill = PatternFill("solid", fgColor="E8F0FE")
     for row_idx, ex in enumerate(examples, 2):
@@ -546,7 +604,7 @@ def admin_clients_template(request):
             if row_idx == 3:
                 cell.fill = note_fill
 
-    col_widths = [18, 18, 20, 24, 18, 16, 12, 12, 8, 22, 14, 24, 24]
+    col_widths = [18, 18, 20, 24, 18, 16, 12, 12, 8, 22, 14, 24, 24, 18, 18, 18]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
 
@@ -557,13 +615,14 @@ def admin_clients_template(request):
         ("RÈGLE PRINCIPALE", "Une seule feuille pour tout : clients ET leurs dossiers"),
         ("Client existant", "Si l'identifiant existe déjà → le dossier est ajouté au client existant (mot de passe ignoré)"),
         ("Nouveau client", "Si l'identifiant est nouveau → client + dossier créés (mot de passe obligatoire)"),
-        ("Plusieurs dossiers", "Ligne 2 exemple : jean.mballa a 2 dossiers → répéter l'identifiant, laisser les infos client vides"),
-        ("Client sans dossier", "Ligne 4 exemple : paul.biya est créé sans dossier (colonnes 10-13 vides)"),
+        ("Plusieurs dossiers", "Répéter l'identifiant du client sur plusieurs lignes avec des intitulés différents"),
+        ("Client sans dossier", "Laisser la colonne 'Intitulé dossier' vide pour créer un client sans dossier"),
+        ("Accès partagés", "Colonnes 14-16 : identifiants des autres clients qui auront accès au même dossier"),
+        ("Accès partagés (note)", "L'identifiant de la colonne 14-16 doit déjà exister en base ou être dans le fichier"),
         ("Sexe", "masculin / feminin / plusieurs"),
         ("Rôle", "client / commercial / admin (défaut : client)"),
         ("Date paiement", "Format YYYY-MM-DD (2024-06-15) ou JJ/MM/AAAA (15/06/2024)"),
         ("Intitulé", "S'il n'existe pas en base, il sera créé automatiquement"),
-        ("Intitulés existants", ", ".join(IntituleDossier.objects.values_list('name', flat=True)) or "Aucun pour le moment"),
         ("* Obligatoire", "Identifiant toujours requis. Mot de passe requis seulement pour les nouveaux clients."),
     ]
     for i, (t, d) in enumerate(lignes, 3):
@@ -576,6 +635,7 @@ def admin_clients_template(request):
     response['Content-Disposition'] = 'attachment; filename="modele_import_eden.xlsx"'
     wb.save(response)
     return response
+
 
 
 # ── ÉTAPES ──
@@ -635,8 +695,12 @@ def admin_dossiers(request):
     date_debut = request.GET.get('date_debut', '')
     date_fin = request.GET.get('date_fin', '')
     sans_superficie = request.GET.get('sans_superficie', '')
+    pct_tech_min = request.GET.get('pct_tech_min', '')
+    pct_tech_max = request.GET.get('pct_tech_max', '')
+    pct_morc_min = request.GET.get('pct_morc_min', '')
+    pct_morc_max = request.GET.get('pct_morc_max', '')
 
-    dossiers = Dossier.objects.select_related('client', 'intitule').all()
+    dossiers = Dossier.objects.select_related('client', 'intitule').prefetch_related('acces__user').order_by('-created_at')
 
     if date_debut:
         try:
@@ -651,7 +715,32 @@ def admin_dossiers(request):
     if sans_superficie == '1':
         dossiers = dossiers.filter(superficie__isnull=True)
 
-    dossiers_data = [{'dossier': d, 'is_complete': d.is_complete()} for d in dossiers]
+    dossiers_data = []
+    for d in dossiers:
+        pt = d.get_progression_technique()
+        pm = d.get_progression_morcellement()
+
+        # Filtre pourcentage (post-queryset car méthodes Python)
+        if pct_tech_min and pt < int(pct_tech_min):
+            continue
+        if pct_tech_max and pt > int(pct_tech_max):
+            continue
+        if pct_morc_min and pm < int(pct_morc_min):
+            continue
+        if pct_morc_max and pm > int(pct_morc_max):
+            continue
+
+        clients_display = d.get_clients_display()
+        search_str = f"{d.reference.lower()} {d.get_title().lower()} {clients_display.lower()}"
+        dossiers_data.append({
+            'dossier': d,
+            'is_complete': d.is_complete(),
+            'clients_display': clients_display,
+            'search_str': search_str,
+            'pt': pt,
+            'pm': pm,
+        })
+
     etapes_tech = EtapeGlobale.objects.filter(type='technique')
     etapes_morc = EtapeGlobale.objects.filter(type='morcellement')
     return render(request, 'adminpanel/dossiers/list.html', {
@@ -661,29 +750,54 @@ def admin_dossiers(request):
         'date_debut': date_debut,
         'date_fin': date_fin,
         'sans_superficie': sans_superficie,
+        'pct_tech_min': pct_tech_min,
+        'pct_tech_max': pct_tech_max,
+        'pct_morc_min': pct_morc_min,
+        'pct_morc_max': pct_morc_max,
     })
 
 @admin_required
 def admin_dossier_create(request):
+    from apps.dossiers.models import DossierAcces
     clients = User.objects.filter(role='client', is_active=True)
     intitules = IntituleDossier.objects.all()
     if request.method == 'POST':
         client = get_object_or_404(User, pk=request.POST.get('client'), role='client')
         intitule_id = request.POST.get('intitule')
         intitule = get_object_or_404(IntituleDossier, pk=intitule_id) if intitule_id else None
-        d = Dossier(client=client, intitule=intitule, description=request.POST.get('description', ''), superficie=request.POST.get('superficie') or None, date_paiement=request.POST.get('date_paiement') or None)
+        d = Dossier(
+            client=client,
+            intitule=intitule,
+            description=request.POST.get('description', ''),
+            superficie=request.POST.get('superficie') or None,
+            date_paiement=request.POST.get('date_paiement') or None
+        )
         if request.FILES.get('photo'):
             d.photo = request.FILES['photo']
         d.save()
+        # Accès propriétaire
+        DossierAcces.objects.get_or_create(dossier=d, user=client, defaults={'est_proprietaire': True})
+        # Accès supplémentaires
+        for uid in request.POST.getlist('acces_supplementaires'):
+            try:
+                u = User.objects.get(pk=uid)
+                DossierAcces.objects.get_or_create(dossier=d, user=u, defaults={'est_proprietaire': False})
+            except User.DoesNotExist:
+                pass
         d.planifier_cochages_automatiques()
         DossierHistorique.objects.create(dossier=d, message="Dossier créé — cochage automatique planifié", created_by=request.user)
         messages.success(request, f"Dossier {d.reference} créé.")
         return redirect('admin_dossier_detail', pk=d.pk)
-    return render(request, 'adminpanel/dossiers/form.html', {'clients': clients, 'intitules': intitules, 'action': 'Créer'})
-
+    return render(request, 'adminpanel/dossiers/form.html', {
+        'clients': clients,
+        'intitules': intitules,
+        'action': 'Créer',
+        'all_clients': User.objects.filter(role='client', is_active=True),
+    })
 
 @admin_required
 def admin_dossier_detail(request, pk):
+    from apps.dossiers.models import DossierAcces
     dossier = get_object_or_404(Dossier, pk=pk)
     dossier.appliquer_cochages_automatiques()
     etapes_tech = dossier.get_etapes_technique()
@@ -697,17 +811,75 @@ def admin_dossier_detail(request, pk):
     pct_morc_bar = round(prog_morc / total_morc * 100) if total_morc > 0 else 0
     etapes_tech_list = list(EtapeGlobale.objects.filter(type='technique'))
     etapes_morc_list = list(EtapeGlobale.objects.filter(type='morcellement'))
+    acces_list = dossier.acces.select_related('user').all()
+    clients_disponibles = User.objects.filter(role='client', is_active=True).exclude(
+        pk__in=[a.user_id for a in acces_list]
+    )
     return render(request, 'adminpanel/dossiers/detail.html', {
-        'dossier': dossier, 'etapes_tech': etapes_tech, 'etapes_morc': etapes_morc,
-        'historique': historique, 'prog_tech': prog_tech, 'prog_morc': prog_morc,
-        'total_tech': total_tech, 'total_morc': total_morc,
-        'pct_tech_bar': pct_tech_bar, 'pct_morc_bar': pct_morc_bar,
+        'dossier': dossier,
+        'etapes_tech': etapes_tech,
+        'etapes_morc': etapes_morc,
+        'historique': historique,
+        'prog_tech': prog_tech,
+        'prog_morc': prog_morc,
+        'total_tech': total_tech,
+        'total_morc': total_morc,
+        'pct_tech_bar': pct_tech_bar,
+        'pct_morc_bar': pct_morc_bar,
         'current_tech': dossier.get_current_etape_technique(),
         'current_morc': dossier.get_current_etape_morcellement(),
         'morc_locked': not dossier.is_technique_complete(),
         'last_tech_id': etapes_tech_list[-1].pk if etapes_tech_list else None,
         'last_morc_id': etapes_morc_list[-1].pk if etapes_morc_list else None,
+        'acces_list': acces_list,
+        'clients_disponibles': clients_disponibles,
     })
+
+@admin_required
+@require_POST
+def admin_dossier_acces_ajouter(request, pk):
+    from apps.dossiers.models import DossierAcces
+    dossier = get_object_or_404(Dossier, pk=pk)
+    user_id = request.POST.get('user_id')
+    if user_id:
+        try:
+            u = User.objects.get(pk=user_id, role='client')
+            _, created = DossierAcces.objects.get_or_create(
+                dossier=dossier, user=u,
+                defaults={'est_proprietaire': False}
+            )
+            if created:
+                DossierHistorique.objects.create(
+                    dossier=dossier,
+                    message=f"Accès ajouté pour {u.last_name or u.username}",
+                    created_by=request.user
+                )
+                messages.success(request, f"Accès ajouté pour {u.last_name or u.username}.")
+            else:
+                messages.warning(request, "Cet utilisateur a déjà accès à ce dossier.")
+        except User.DoesNotExist:
+            messages.error(request, "Utilisateur introuvable.")
+    return redirect('admin_dossier_detail', pk=pk)
+
+
+@admin_required
+@require_POST
+def admin_dossier_acces_supprimer(request, pk, acces_pk):
+    from apps.dossiers.models import DossierAcces
+    dossier = get_object_or_404(Dossier, pk=pk)
+    acces = get_object_or_404(DossierAcces, pk=acces_pk, dossier=dossier)
+    if acces.est_proprietaire:
+        messages.error(request, "Impossible de supprimer le propriétaire principal.")
+        return redirect('admin_dossier_detail', pk=pk)
+    nom = acces.user.last_name or acces.user.username
+    acces.delete()
+    DossierHistorique.objects.create(
+        dossier=dossier,
+        message=f"Accès supprimé pour {nom}",
+        created_by=request.user
+    )
+    messages.success(request, f"Accès supprimé pour {nom}.")
+    return redirect('admin_dossier_detail', pk=pk)
 
 
 @admin_required

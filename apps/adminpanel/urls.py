@@ -41,6 +41,8 @@ urlpatterns = [
     path('dossiers/<int:pk>/', views.admin_dossier_detail, name='admin_dossier_detail'),
     path('dossiers/<int:pk>/modifier/', views.admin_dossier_edit, name='admin_dossier_edit'),
     path('dossiers/<int:pk>/supprimer/', views.admin_dossier_delete, name='admin_dossier_delete'),
+    path('dossiers/<int:pk>/acces/ajouter/', views.admin_dossier_acces_ajouter, name='admin_dossier_acces_ajouter'),
+    path('dossiers/<int:pk>/acces/<int:acces_pk>/supprimer/', views.admin_dossier_acces_supprimer, name='admin_dossier_acces_supprimer'),
     path('dossiers/<int:dossier_pk>/etape/<int:etape_pk>/toggle/', views.admin_etape_toggle, name='admin_etape_toggle'),
     path('dossiers/alerte-45j/', views.admin_dossiers_alerte, name='admin_dossiers_alerte'),
 

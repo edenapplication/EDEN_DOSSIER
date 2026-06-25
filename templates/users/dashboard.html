@@ -96,6 +96,21 @@
   {{ dossier.reference }}
   {% if dossier.superficie %} · {{ dossier.superficie }} m²{% endif %}
 </div>
+
+{% if dossier.description %}
+<div class="dossier-list-desc" style="font-size:12px;color:var(--muted);margin-top:3px">
+  {{ dossier.description }}
+</div>
+{% endif %}
+
+<div style="font-size:12px;color:var(--muted);margin-top:3px">
+  Dossier de
+  {% with acces_list=dossier.acces.all %}
+  {% for acces in acces_list %}
+    {{ acces.user.last_name|default:acces.user.username }}{% if not forloop.last %} et {% endif %}
+  {% endfor %}
+  {% endwith %}
+</div>
           </div>
           <div class="dossier-list-right">
             <span class="badge {% if dossier.is_complete %}badge-green{% else %}badge-yellow{% endif %}">

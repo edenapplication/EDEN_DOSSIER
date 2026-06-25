@@ -63,9 +63,11 @@ def logout_view(request):
 
 @login_required
 def dashboard_view(request):
+    from apps.dossiers.models import DossierAcces
     if request.user.is_admin_role():
         return redirect('admin_dashboard')
-    dossiers = Dossier.objects.filter(client=request.user)
+    dossier_ids = DossierAcces.objects.filter(user=request.user).values_list('dossier_id', flat=True)
+    dossiers = Dossier.objects.filter(pk__in=dossier_ids).select_related('client', 'intitule').prefetch_related('acces__user')
     promotions = Promotion.objects.filter(is_active=True).order_by('order')
     return render(request, 'users/dashboard.html', {
         'dossiers': dossiers,

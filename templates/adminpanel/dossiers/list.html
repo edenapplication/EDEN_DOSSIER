@@ -17,8 +17,12 @@
 .status-btn.active,.status-btn:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
 .date-input{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;font-size:13px;font-family:inherit;outline:none;color:var(--text);cursor:pointer;max-width:150px}
 .date-input:focus{border-color:var(--navy)}
+.pct-input{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:7px 8px;font-size:13px;font-family:inherit;outline:none;color:var(--text);width:68px;text-align:center}
+.pct-input:focus{border-color:var(--navy)}
 .date-label{font-size:12px;color:var(--muted);font-weight:500;white-space:nowrap}
 .filter-period{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.filter-section{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:10px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.filter-section-title{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);white-space:nowrap}
 .pct-cell{text-align:center}
 .pct-num{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:400;line-height:1}
 .pct-bar-mini{height:4px;background:var(--gray);border-radius:100px;overflow:hidden;margin-top:4px;width:52px}
@@ -38,8 +42,6 @@
 .row-check,.select-all-check{width:15px;height:15px;accent-color:var(--navy);cursor:pointer}
 tr.selected-row td{background:rgba(11,31,58,.03)}
 .client-upper{text-transform:uppercase;font-weight:500}
-
-/* superficie inline */
 .superficie-inline{display:none;align-items:center;gap:8px}
 .superficie-inline.visible{display:flex}
 .superficie-field{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;font-size:13px;font-family:inherit;width:110px;outline:none}
@@ -56,19 +58,16 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
 .etape-check-box{width:16px;height:16px;accent-color:var(--navy);cursor:pointer;flex-shrink:0}
 .etape-label{flex:1;font-size:13px;color:var(--text)}
 .etape-pct-label{font-size:13px;color:var(--muted)}
-
-/* TABLE */
 .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%}
-.table{min-width:700px}
+.table{min-width:720px}
 
-/* CARDS MOBILE */
 @media(max-width:700px){
+  .filter-section{flex-direction:column;align-items:stretch}
   .filter-period{flex-wrap:wrap}
   .date-input{max-width:100%;flex:1;min-width:120px}
   .filter-btns-dossier{display:flex;gap:6px;flex-wrap:wrap}
   .status-btn{flex:1;text-align:center}
   .page-header{flex-direction:column;align-items:flex-start;gap:8px}
-  .page-header .btn{font-size:11px;padding:5px 9px}
   .table-wrap{display:none}
   .mobile-cards-dos{display:block}
 }
@@ -103,28 +102,56 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
   {% endif %}
 </div>
 
-<!-- FILTRES PÉRIODE (server-side) -->
+<!-- FILTRES SERVER-SIDE -->
 <form method="get" action="" id="periodForm">
-  <div class="filter-bar" style="margin-bottom:10px">
+
+  <!-- Période + sans superficie -->
+  <div class="filter-section">
+    <span class="filter-section-title">📅 Période</span>
     <div class="filter-period">
-      <span class="date-label">Ajouté du</span>
+      <span class="date-label">Du</span>
       <input type="date" class="date-input" name="date_debut" value="{{ date_debut }}" onchange="document.getElementById('periodForm').submit()">
       <span class="date-label">au</span>
       <input type="date" class="date-input" name="date_fin" value="{{ date_fin }}" onchange="document.getElementById('periodForm').submit()">
-      {% if date_debut or date_fin or sans_superficie == '1' %}
-      <a href="{% url 'admin_dossiers' %}" class="status-btn" style="font-size:11px;padding:6px 10px">✕ Réinitialiser</a>
-      {% endif %}
     </div>
-    <div class="filter-btns-dossier">
-      <button type="submit" name="sans_superficie" value="{% if sans_superficie == '1' %}{% else %}1{% endif %}" class="status-btn {% if sans_superficie == '1' %}active{% endif %}" style="white-space:nowrap">
-        {% if sans_superficie == '1' %}✓{% endif %} Sans superficie
-      </button>
-      {% if date_debut %}<input type="hidden" name="date_debut" value="{{ date_debut }}">{% endif %}
-      {% if date_fin %}<input type="hidden" name="date_fin" value="{{ date_fin }}">{% endif %}
-    </div>
+    <button type="submit" name="sans_superficie" value="{% if sans_superficie == '1' %}{% else %}1{% endif %}"
+      class="status-btn {% if sans_superficie == '1' %}active{% endif %}">
+      {% if sans_superficie == '1' %}✓{% endif %} Sans superficie
+    </button>
+    {% if date_debut or date_fin or sans_superficie == '1' or pct_tech_min or pct_tech_max or pct_morc_min or pct_morc_max %}
+    <a href="{% url 'admin_dossiers' %}" class="status-btn" style="font-size:11px;padding:6px 10px;background:rgba(193,18,31,.07);color:var(--red);border-color:rgba(193,18,31,.2)">✕ Réinitialiser</a>
+    {% endif %}
+    <!-- Préserver les autres params -->
+    {% if sans_superficie == '1' %}<input type="hidden" name="sans_superficie" value="1">{% endif %}
+    {% if pct_tech_min %}<input type="hidden" name="pct_tech_min" value="{{ pct_tech_min }}">{% endif %}
+    {% if pct_tech_max %}<input type="hidden" name="pct_tech_max" value="{{ pct_tech_max }}">{% endif %}
+    {% if pct_morc_min %}<input type="hidden" name="pct_morc_min" value="{{ pct_morc_min }}">{% endif %}
+    {% if pct_morc_max %}<input type="hidden" name="pct_morc_max" value="{{ pct_morc_max }}">{% endif %}
   </div>
+
+  <!-- Filtre pourcentage -->
+  <div class="filter-section">
+    <span class="filter-section-title">📊 Avancement</span>
+    <div class="filter-period">
+      <span class="date-label">Tech</span>
+      <input type="number" class="pct-input" name="pct_tech_min" value="{{ pct_tech_min }}" min="0" max="100" placeholder="0">
+      <span class="date-label">→</span>
+      <input type="number" class="pct-input" name="pct_tech_max" value="{{ pct_tech_max }}" min="0" max="100" placeholder="100">
+      <span class="date-label" style="margin-left:12px">Morc.</span>
+      <input type="number" class="pct-input" name="pct_morc_min" value="{{ pct_morc_min }}" min="0" max="100" placeholder="0">
+      <span class="date-label">→</span>
+      <input type="number" class="pct-input" name="pct_morc_max" value="{{ pct_morc_max }}" min="0" max="100" placeholder="100">
+      <button type="submit" class="status-btn" style="padding:7px 14px">Filtrer</button>
+    </div>
+    <!-- Préserver les autres params -->
+    {% if date_debut %}<input type="hidden" name="date_debut" value="{{ date_debut }}">{% endif %}
+    {% if date_fin %}<input type="hidden" name="date_fin" value="{{ date_fin }}">{% endif %}
+    {% if sans_superficie == '1' %}<input type="hidden" name="sans_superficie" value="1">{% endif %}
+  </div>
+
 </form>
 
+<!-- FILTRE TEXTE + STATUT (client-side) -->
 <div class="filter-bar">
   <input type="text" class="search-input" id="searchInput" placeholder="Référence, intitulé, client..." oninput="filterDossiers()">
   <div class="filter-btns-dossier">
@@ -146,7 +173,6 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
     <option value="export_excel">⬇ Exporter en Excel</option>
     <option value="supprimer">🗑 Supprimer</option>
   </select>
-  <!-- Champ superficie inline -->
   <div class="superficie-inline" id="superficieInline">
     <input type="number" step="0.01" min="0" class="superficie-field" id="superficieVal" placeholder="ex: 600">
     <span style="font-size:12px;color:var(--muted)">m²</span>
@@ -155,7 +181,7 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
   <button class="bulk-cancel" onclick="clearSelection()">✕</button>
 </div>
 
-<!-- MODAL AVANCEMENT TECH -->
+<!-- MODALS AVANCEMENT -->
 <div class="modal-overlay" id="modalTech">
   <div class="modal-box">
     <div class="modal-title">⚙ Avancement Technique</div>
@@ -167,9 +193,7 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
         <label class="etape-label" for="techEtape{{ etape.pk }}">{{ etape.name }}</label>
         <span class="etape-pct-label">{{ etape.percentage }}%</span>
       </div>
-      {% empty %}
-      <p style="color:var(--muted);text-align:center;padding:16px">Aucune étape technique définie.</p>
-      {% endfor %}
+      {% empty %}<p style="color:var(--muted);text-align:center;padding:16px">Aucune étape technique.</p>{% endfor %}
     </div>
     <div style="display:flex;gap:10px;margin-top:20px">
       <button class="bulk-apply bulk-primary" onclick="submitAvancement('tech')">Appliquer →</button>
@@ -178,11 +202,10 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
   </div>
 </div>
 
-<!-- MODAL AVANCEMENT MORC -->
 <div class="modal-overlay" id="modalMorc">
   <div class="modal-box">
     <div class="modal-title">🗺 Avancement Morcellement</div>
-    <div class="modal-sub">Cochez les étapes à appliquer. Attention : le technique doit être à 100% sur tous les dossiers sélectionnés.</div>
+    <div class="modal-sub">Le technique doit être à 100% sur tous les dossiers sélectionnés.</div>
     <div id="modalMorcEtapes">
       {% for etape in etapes_morc %}
       <div class="etape-check-row">
@@ -190,9 +213,7 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
         <label class="etape-label" for="morcEtape{{ etape.pk }}">{{ etape.name }}</label>
         <span class="etape-pct-label">{{ etape.percentage }}%</span>
       </div>
-      {% empty %}
-      <p style="color:var(--muted);text-align:center;padding:16px">Aucune étape morcellement définie.</p>
-      {% endfor %}
+      {% empty %}<p style="color:var(--muted);text-align:center;padding:16px">Aucune étape morcellement.</p>{% endfor %}
     </div>
     <div style="display:flex;gap:10px;margin-top:20px">
       <button class="bulk-apply bulk-primary" onclick="submitAvancement('morc')">Appliquer →</button>
@@ -215,31 +236,36 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
         <thead>
           <tr>
             {% if request.user.role == 'admin' %}<th style="width:32px"><input type="checkbox" class="select-all-check" id="selectAll" onchange="toggleAll(this)"></th>{% endif %}
-            <th>Référence</th><th>Intitulé</th><th>Client</th><th>Superficie</th><th>Date paiement</th>
-            <th style="text-align:center">Tech</th><th style="text-align:center">Morc.</th><th>Statut</th>
+            <th>Référence</th>
+            <th>Intitulé</th>
+            <th>Client(s)</th>
+            <th>Superficie</th>
+            <th>Créé le</th>
+            <th style="text-align:center">Tech</th>
+            <th style="text-align:center">Morc.</th>
+            <th>Statut</th>
             {% if request.user.role == 'admin' %}<th>Actions</th>{% endif %}
           </tr>
         </thead>
         <tbody>
           {% for item in dossiers_data %}
-          {% with pt=item.dossier.get_progression_technique pm=item.dossier.get_progression_morcellement %}
           <tr data-pk="{{ item.dossier.pk }}"
               data-status="{% if item.is_complete %}complet{% else %}encours{% endif %}"
-              data-search="{{ item.dossier.reference|lower }} {{ item.dossier.get_title|lower }} {{ item.dossier.client.last_name|lower }} {{ item.dossier.client.username|lower }}"
+              data-search="{{ item.search_str }}"
               data-superficie="{% if item.dossier.superficie %}oui{% else %}non{% endif %}">
             {% if request.user.role == 'admin' %}<td><input type="checkbox" class="row-check" name="selected_ids" value="{{ item.dossier.pk }}" onchange="onCheckChange()"></td>{% endif %}
             <td><strong style="font-size:12px;color:var(--navy)">{{ item.dossier.reference }}</strong></td>
             <td>{{ item.dossier.get_title }}</td>
-            <td class="client-upper">{{ item.dossier.client.last_name|default:item.dossier.client.username }}</td>
+            <td class="client-upper" style="font-size:12px">{{ item.clients_display }}</td>
             <td>{% if item.dossier.superficie %}{{ item.dossier.superficie }} m²{% else %}<span style="color:var(--muted)">—</span>{% endif %}</td>
-            <td>{% if item.dossier.date_paiement %}{{ item.dossier.date_paiement|date:"d/m/Y" }}{% else %}<span style="color:var(--muted)">—</span>{% endif %}</td>
+            <td style="font-size:12px;color:var(--muted);white-space:nowrap">{{ item.dossier.created_at|date:"d/m/Y" }}</td>
             <td class="pct-cell">
-              <div class="pct-num" style="color:{% if pt == 100 %}#065f46{% else %}var(--navy){% endif %}">{{ pt }}%</div>
-              <div class="pct-bar-mini"><div class="pct-bar-mini-fill pct-tech-fill" style="width:{{ pt }}%"></div></div>
+              <div class="pct-num" style="color:{% if item.pt == 100 %}#065f46{% else %}var(--navy){% endif %}">{{ item.pt }}%</div>
+              <div class="pct-bar-mini"><div class="pct-bar-mini-fill pct-tech-fill" style="width:{{ item.pt }}%"></div></div>
             </td>
             <td class="pct-cell">
-              <div class="pct-num" style="color:{% if pm == 100 %}#065f46{% else %}var(--navy){% endif %}">{{ pm }}%</div>
-              <div class="pct-bar-mini"><div class="pct-bar-mini-fill pct-morc-fill" style="width:{{ pm }}%"></div></div>
+              <div class="pct-num" style="color:{% if item.pm == 100 %}#065f46{% else %}var(--navy){% endif %}">{{ item.pm }}%</div>
+              <div class="pct-bar-mini"><div class="pct-bar-mini-fill pct-morc-fill" style="width:{{ item.pm }}%"></div></div>
             </td>
             <td><span class="badge {% if item.is_complete %}badge-green{% else %}badge-yellow{% endif %}">{% if item.is_complete %}Complet{% else %}En cours{% endif %}</span></td>
             {% if request.user.role == 'admin' %}
@@ -250,9 +276,8 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
             </td>
             {% endif %}
           </tr>
-          {% endwith %}
           {% empty %}
-          <tr><td colspan="10" style="text-align:center;padding:48px;color:var(--muted)">Aucun dossier créé</td></tr>
+          <tr><td colspan="10" style="text-align:center;padding:48px;color:var(--muted)">Aucun dossier</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -262,30 +287,29 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
   <!-- CARDS MOBILE -->
   <div class="mobile-cards-dos">
     {% for item in dossiers_data %}
-    {% with pt=item.dossier.get_progression_technique pm=item.dossier.get_progression_morcellement %}
     <div class="dos-card"
          data-pk="{{ item.dossier.pk }}"
          data-status="{% if item.is_complete %}complet{% else %}encours{% endif %}"
-         data-search="{{ item.dossier.reference|lower }} {{ item.dossier.get_title|lower }} {{ item.dossier.client.last_name|lower }}"
+         data-search="{{ item.search_str }}"
          data-superficie="{% if item.dossier.superficie %}oui{% else %}non{% endif %}">
       {% if request.user.role == 'admin' %}
       <input type="checkbox" class="row-check dos-card-check" name="selected_ids" value="{{ item.dossier.pk }}" onchange="onCheckChange()">
       {% endif %}
       <div class="dos-card-ref">{{ item.dossier.reference }}</div>
       <div class="dos-card-title">{{ item.dossier.get_title }}</div>
-      <div class="dos-card-client">{{ item.dossier.client.last_name|default:item.dossier.client.username }}</div>
+      <div class="dos-card-client">{{ item.clients_display }}</div>
       <div class="dos-card-row"><span style="color:var(--muted)">Superficie</span><span>{% if item.dossier.superficie %}{{ item.dossier.superficie }} m²{% else %}—{% endif %}</span></div>
-      <div class="dos-card-row"><span style="color:var(--muted)">Date paiement</span><span>{% if item.dossier.date_paiement %}{{ item.dossier.date_paiement|date:"d/m/Y" }}{% else %}—{% endif %}</span></div>
+      <div class="dos-card-row"><span style="color:var(--muted)">Créé le</span><span>{{ item.dossier.created_at|date:"d/m/Y" }}</span></div>
       <div class="dos-card-progress">
         <div class="dos-card-prog-item">
           <div class="dos-card-prog-label">Technique</div>
-          <div class="dos-card-prog-val">{{ pt }}%</div>
-          <div class="pct-bar-mini" style="width:100%"><div class="pct-bar-mini-fill pct-tech-fill" style="width:{{ pt }}%"></div></div>
+          <div class="dos-card-prog-val">{{ item.pt }}%</div>
+          <div class="pct-bar-mini" style="width:100%"><div class="pct-bar-mini-fill pct-tech-fill" style="width:{{ item.pt }}%"></div></div>
         </div>
         <div class="dos-card-prog-item">
           <div class="dos-card-prog-label">Morcellement</div>
-          <div class="dos-card-prog-val">{{ pm }}%</div>
-          <div class="pct-bar-mini" style="width:100%"><div class="pct-bar-mini-fill pct-morc-fill" style="width:{{ pm }}%"></div></div>
+          <div class="dos-card-prog-val">{{ item.pm }}%</div>
+          <div class="pct-bar-mini" style="width:100%"><div class="pct-bar-mini-fill pct-morc-fill" style="width:{{ item.pm }}%"></div></div>
         </div>
       </div>
       <div class="dos-card-row">
@@ -300,7 +324,6 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
       </div>
       {% endif %}
     </div>
-    {% endwith %}
     {% empty %}
     <p style="text-align:center;color:var(--muted);padding:40px">Aucun dossier.</p>
     {% endfor %}
@@ -367,8 +390,7 @@ function toggleAll(masterCb){
 }
 
 function onBulkActionChange(sel){
-  const inline=document.getElementById('superficieInline');
-  inline.classList.toggle('visible', sel.value==='superficie');
+  document.getElementById('superficieInline').classList.toggle('visible',sel.value==='superficie');
 }
 
 function applyBulk(){
@@ -376,10 +398,8 @@ function applyBulk(){
   if(!action){alert('Choisissez une action.');return;}
   const checked=document.querySelectorAll('.row-check:checked');
   if(!checked.length){alert('Aucun dossier sélectionné.');return;}
-
   if(action==='avancement_tech'){openModal('modalTech');return;}
   if(action==='avancement_morc'){openModal('modalMorc');return;}
-
   if(action==='superficie'){
     const val=document.getElementById('superficieVal').value.trim();
     if(!val||isNaN(parseFloat(val))){alert('Veuillez saisir une superficie valide.');return;}
@@ -389,7 +409,6 @@ function applyBulk(){
     document.getElementById('bulkForm').submit();
     return;
   }
-
   if(action==='export_excel'){
     const ids=Array.from(checked).map(cb=>cb.value).join(',');
     window.location.href=`{% url 'admin_dossiers_export_excel' %}?ids=${ids}`;
@@ -412,9 +431,7 @@ function submitAvancement(type){
   container.innerHTML='';
   checked.forEach(cb=>{
     const inp=document.createElement('input');
-    inp.type='hidden';
-    inp.name=type==='tech'?'etapes_tech_ids':'etapes_morc_ids';
-    inp.value=cb.value;
+    inp.type='hidden';inp.name=type==='tech'?'etapes_tech_ids':'etapes_morc_ids';inp.value=cb.value;
     container.appendChild(inp);
   });
   document.getElementById('bulkActionHidden').value='avancement_'+type;

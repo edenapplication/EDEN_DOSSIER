@@ -15,7 +15,10 @@ def dossier_list(request):
 def dossier_detail(request, pk):
     if request.user.is_admin_role():
         return redirect('admin_dashboard')
-    dossier = get_object_or_404(Dossier, pk=pk, client=request.user)
+    dossier = get_object_or_404(
+    Dossier.objects.filter(acces__user=request.user),
+    pk=pk
+)
     dossier.appliquer_cochages_automatiques()
 
     property_images = []
