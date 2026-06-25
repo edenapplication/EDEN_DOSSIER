@@ -196,5 +196,25 @@ document.addEventListener('keydown', function(e){
     isAdmin ? switchToClient() : switchToAdmin();
   }
 });
+
+let adminClicks = 0;
+let adminTimer = null;
+
+document.querySelector('.login-logo-zone').addEventListener('click', function(){
+
+    adminClicks++;
+
+    clearTimeout(adminTimer);
+
+    adminTimer = setTimeout(() => {
+        adminClicks = 0;
+    }, 1500);
+
+    if(adminClicks == 5){
+        adminClicks = 0;
+        switchToAdmin();
+    }
+
+});
 </script>
 {% endblock %}
