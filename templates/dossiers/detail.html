@@ -108,12 +108,7 @@
           <span class="banner-detail-value">{{ dossier.superficie }} m²</span>
         </div>
         {% endif %}
-        {% if dossier.date_paiement %}
-        <div class="banner-detail-item">
-          <span class="banner-detail-label">Date de paiement</span>
-          <span class="banner-detail-value">{{ dossier.date_paiement|date:"d F Y" }}</span>
-        </div>
-        {% endif %}
+        
         <div class="banner-detail-item">
           <span class="banner-detail-label">Statut</span>
           <span class="banner-detail-value">{{ dossier.get_statut_display }}</span>
