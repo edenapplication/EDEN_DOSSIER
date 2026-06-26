@@ -68,31 +68,7 @@
     color:#fff;
 }
 
-/* Étape 1 */
-.wf-tech{
-    background:#e8f5e9;
-    color:#1b5e20;
-}
 
-.wf-tech .step-badge{
-    background:#2e7d32;
-}
-
-/* Étape 2 */
-.wf-morc{
-    background:#fff3e0;
-    color:#e65100;
-}
-
-.wf-morc .step-badge{
-    background:#ef6c00;
-}
-
-/* Onglet actif */
-.wf-tab.active{
-    transform:translateY(-2px);
-    box-shadow:0 4px 12px rgba(0,0,0,.15);
-}
 
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -160,12 +136,12 @@
         <div style="padding:24px">
           <div class="wf-tabs">
     <button class="wf-tab wf-tech active" onclick="switchWf(this,'tech')">
-        <span class="step-badge">Étape 1</span>
+        <div class="step-badge" style="color: #C1121F; font-size: 15px;">Étape 1</div>
         ⚙ Dossier Technique
     </button>
 
     <button class="wf-tab wf-morc" onclick="switchWf(this,'morc')">
-        <span class="step-badge">Étape 2</span>
+        <div class="step-badge" style="color: #C1121F; font-size: 15px;">Étape 2</div>
         🗺 Titre Foncier de Morcellement
     </button>
 </div>

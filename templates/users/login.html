@@ -88,13 +88,12 @@
         {% csrf_token %}
         <input type="hidden" name="login_type" value="client">
         <div class="form-group-login">
-          <label class="form-label-login">Nom(s) complet</label>
+          <label class="form-label-login"></label>
           <input
             type="text"
             name="username"
             class="eden-input"
             id="clientUsernameInput"
-            placeholder="Nom(s) complet du Dossier Technique"
             required
             autocomplete="username"
             value="{{ client_username|default:'' }}"
