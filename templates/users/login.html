@@ -78,7 +78,7 @@
     <div class="login-panel {% if not show_admin %}active{% endif %}" id="panelClient">
       <span class="login-panel-type panel-type-client">👤 Espace Client</span>
       <div class="login-panel-title">Accéder à mon dossier</div>
-      <div class="login-panel-sub">Entrez votre Nom en MAJUSCULE tel que Ecrit sur Votre CNI</div>
+      <div class="login-panel-sub">Veuillez saisir votre nom en lettres majuscules, tel qu'il figure sur votre pièce d'identité.</div>
 
       {% if form_client_error %}
       <div class="error-box">✕ {{ form_client_error }}</div>
@@ -88,13 +88,13 @@
         {% csrf_token %}
         <input type="hidden" name="login_type" value="client">
         <div class="form-group-login">
-          <label class="form-label-login"> Entrer le Nom ICI</label>
+          <label class="form-label-login"> Entrer le Nom en majuscule</label>
           <input
             type="text"
             name="username"
             class="eden-input"
             id="clientUsernameInput"
-            placeholder="Entrer votre Nom"
+            placeholder="Entrez votre Nom ici"
             required
             autocomplete="username"
             value="{{ client_username|default:'' }}"
