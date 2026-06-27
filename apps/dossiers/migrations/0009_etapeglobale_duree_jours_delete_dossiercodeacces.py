@@ -15,7 +15,4 @@ class Migration(migrations.Migration):
             name='duree_jours',
             field=models.PositiveIntegerField(default=7, help_text='Nombre de jours avant passage automatique à cette étape'),
         ),
-        migrations.DeleteModel(
-            name='DossierCodeAcces',
-        ),
     ]
