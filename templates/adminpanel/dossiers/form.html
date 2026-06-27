@@ -92,7 +92,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Date de paiement *</label>
-          <input type="date" name="date_paiement" class="form-control" value="{{ dossier.date_paiement|date:'Y-m-d'|default:'' }}" required>
+          <input type="date" name="date_paiement" class="form-control" value="{{ dossier.date_paiement|date:'Y-m-d'|default:'' }}" >
           <span class="form-hint">Génère la référence automatiquement</span>
         </div>
       </div>

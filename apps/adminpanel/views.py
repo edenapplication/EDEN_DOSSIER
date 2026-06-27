@@ -651,11 +651,19 @@ def admin_etape_globale_create(request):
     if request.method == 'POST':
         type_ = request.POST.get('type')
         pct = int(request.POST.get('percentage', 0))
+        duree = int(request.POST.get('duree_jours', 7))
         total_actuel = sum(e.percentage for e in EtapeGlobale.objects.filter(type=type_))
         if total_actuel + pct > 100:
             messages.error(request, f"Impossible : total dépasserait 100% (actuel : {total_actuel}%)")
             return redirect('admin_etapes_globales')
-        EtapeGlobale.objects.create(name=request.POST.get('name'), type=type_, percentage=pct, order=int(request.POST.get('order', 0)), description=request.POST.get('description', ''))
+        EtapeGlobale.objects.create(
+            name=request.POST.get('name'),
+            type=type_,
+            percentage=pct,
+            order=int(request.POST.get('order', 0)),
+            description=request.POST.get('description', ''),
+            duree_jours=duree,
+        )
         messages.success(request, "Étape créée.")
         return redirect('admin_etapes_globales')
     return render(request, 'adminpanel/etapes/form.html', {'action': 'Créer'})
@@ -666,7 +674,10 @@ def admin_etape_globale_edit(request, pk):
     etape = get_object_or_404(EtapeGlobale, pk=pk)
     if request.method == 'POST':
         pct = int(request.POST.get('percentage', 0))
-        total_actuel = sum(e.percentage for e in EtapeGlobale.objects.filter(type=etape.type).exclude(pk=pk))
+        duree = int(request.POST.get('duree_jours', 7))
+        total_actuel = sum(
+            e.percentage for e in EtapeGlobale.objects.filter(type=etape.type).exclude(pk=pk)
+        )
         if total_actuel + pct > 100:
             messages.error(request, "Impossible : total dépasserait 100%")
             return redirect('admin_etapes_globales')
@@ -674,6 +685,7 @@ def admin_etape_globale_edit(request, pk):
         etape.percentage = pct
         etape.order = int(request.POST.get('order', 0))
         etape.description = request.POST.get('description', '')
+        etape.duree_jours = duree
         etape.save()
         messages.success(request, "Étape modifiée.")
         return redirect('admin_etapes_globales')

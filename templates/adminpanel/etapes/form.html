@@ -35,6 +35,12 @@
         <label class="form-label">Nom de l'étape *</label>
         <input type="text" name="name" class="form-control" value="{{ etape.name|default:'' }}" required placeholder="Ex : Étude cadastrale">
       </div>
+      <div class="form-group">
+  <label class="form-label">Durée avant passage automatique (jours)</label>
+  <input type="number" name="duree_jours" class="form-control"
+    value="{{ etape.duree_jours|default:7 }}" min="1" max="365" required>
+  <div class="form-hint">Nombre de jours après la validation de l'étape précédente avant que celle-ci soit cochée automatiquement.</div>
+</div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Pourcentage (%) *</label>

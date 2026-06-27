@@ -154,8 +154,16 @@
       <!-- MORCELLEMENT -->
       <div class="panel" id="panel-morc">
         {% if morc_locked %}
-        <div class="locked-banner">🔒 Le morcellement est accessible uniquement quand le technique est à 100%.</div>
-        {% endif %}
+<div class="locked-banner">🔒 Le morcellement est accessible uniquement quand le technique est à 100%.</div>
+{% elif etapes_morc %}
+  {% with premiere=etapes_morc.0 %}
+  {% if not premiere.is_done %}
+  <div class="locked-banner" style="background:rgba(193,18,31,.06);border-color:rgba(193,18,31,.2);color:var(--red)">
+    ☝ Cochez manuellement la première étape <strong>« {{ premiere.etape.name }} »</strong> pour débloquer le suivi automatique du morcellement.
+  </div>
+  {% endif %}
+  {% endwith %}
+{% endif %}
         <div class="donut-wrap">
           <div class="donut-container">
             <canvas id="donut-morc" width="110" height="110"></canvas>
@@ -195,28 +203,39 @@
         {% endif %}
 
         {% for item in etapes_morc %}
-        <div class="etape-row" id="row-morc-{{ item.etape.pk }}">
-          <button class="toggle-btn {% if item.is_done %}done{% endif %} {% if item.etape.pk == last_morc_id %}last-etape{% endif %}"
-            id="btn-morc-{{ item.etape.pk }}"
-            data-type="morc"
-            data-pk="{{ item.etape.pk }}"
-            data-done="{{ item.is_done|yesno:'true,false' }}"
-            onclick="toggleEtape({{ dossier.pk }}, {{ item.etape.pk }}, 'morc')"
-            {% if morc_locked %}disabled title="Technique non complété"{% else %}title="{% if item.etape.pk == last_morc_id %}Dernière étape — cochage manuel{% elif item.is_done %}Annuler{% else %}Valider{% endif %}"{% endif %}>
-            {% if item.is_done %}✓{% endif %}
-          </button>
-          <div style="flex:1">
-            <div style="font-size:13.5px;{% if item.is_done %}font-weight:500;color:var(--navy){% else %}color:{% if morc_locked %}var(--muted){% else %}var(--text){% endif %}{% endif %}" id="label-morc-{{ item.etape.pk }}">
-              {{ item.etape.name }}
-              {% if item.etape.pk == last_morc_id %}<span style="font-size:11px;color:var(--red);margin-left:6px">★ Manuelle</span>{% endif %}
-              {% if item.is_auto and item.etape.pk != last_morc_id %}<span class="badge badge-auto" style="margin-left:6px">Auto</span>{% endif %}
-            </div>
-          </div>
-          <div style="font-size:12px;color:var(--muted)">{{ item.etape.percentage }}%</div>
-        </div>
-        {% empty %}
-        <div style="padding:24px;text-align:center;color:var(--muted)">Aucune étape. <a href="{% url 'admin_etapes_globales' %}" style="color:var(--red)">Créer →</a></div>
-        {% endfor %}
+<div class="etape-row" id="row-morc-{{ item.etape.pk }}">
+  <button class="toggle-btn {% if item.is_done %}done{% endif %} {% if forloop.first %}last-etape{% endif %} {% if item.etape.pk == last_morc_id and not forloop.first %}last-etape{% endif %}"
+    id="btn-morc-{{ item.etape.pk }}"
+    data-type="morc"
+    data-pk="{{ item.etape.pk }}"
+    data-done="{{ item.is_done|yesno:'true,false' }}"
+    onclick="toggleEtape({{ dossier.pk }}, {{ item.etape.pk }}, 'morc')"
+    {% if morc_locked %}disabled title="Technique non complété"
+    {% elif forloop.first and item.is_done %}title="Annuler"
+    {% elif forloop.first %}title="Cocher manuellement pour débloquer les étapes suivantes"
+    {% elif item.etape.pk == last_morc_id %}title="Dernière étape — cochage manuel"
+    {% elif item.is_done %}title="Annuler"
+    {% else %}title="Valider"{% endif %}>
+    {% if item.is_done %}✓{% endif %}
+  </button>
+  <div style="flex:1">
+    <div style="font-size:13.5px;{% if item.is_done %}font-weight:500;color:var(--navy){% else %}color:{% if morc_locked %}var(--muted){% else %}var(--text){% endif %}{% endif %}"
+      id="label-morc-{{ item.etape.pk }}">
+      {{ item.etape.name }}
+      {% if forloop.first %}
+        <span style="font-size:11px;color:var(--red);margin-left:6px">★ 1ʳᵉ étape — manuelle obligatoire</span>
+      {% elif item.etape.pk == last_morc_id %}
+        <span style="font-size:11px;color:var(--red);margin-left:6px">★ Manuelle</span>
+      {% elif item.is_auto %}
+        <span class="badge badge-auto" style="margin-left:6px">Auto</span>
+      {% endif %}
+    </div>
+  </div>
+  <div style="font-size:12px;color:var(--muted)">{{ item.etape.percentage }}%</div>
+</div>
+{% empty %}
+<div style="padding:24px;text-align:center;color:var(--muted)">Aucune étape. <a href="{% url 'admin_etapes_globales' %}" style="color:var(--red)">Créer →</a></div>
+{% endfor %}
       </div>
     </div>
   </div>
@@ -257,86 +276,86 @@
 
     <!-- SECTION ACCÈS -->
     {% if request.user.role == 'admin' %}
-    <div class="card">
-      <div class="card-header"><span class="card-title">👥 Accès au dossier</span></div>
+<div class="card" style="overflow:visible">
+  <div class="card-header"><span class="card-title">👥 Accès au dossier</span></div>
 
-      <!-- Liste des accès -->
-      <div style="padding:0">
-        {% for acces in acces_list %}
-        <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border)">
-          <div style="width:30px;height:30px;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0">
-            {{ acces.user.get_initials }}
-          </div>
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:13px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-              {{ acces.user.last_name|default:acces.user.username }}
-            </div>
-            <div style="font-size:11px;color:var(--muted)">
-              <code style="background:var(--gray);padding:1px 5px;border-radius:3px;font-size:10px">{{ acces.user.username }}</code>
-              {% if acces.user.phone %} · {{ acces.user.phone }}{% endif %}
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-            {% if acces.est_proprietaire %}
-            <span class="badge badge-blue" style="font-size:10px">Principal</span>
-            {% else %}
-            <span class="badge badge-gray" style="font-size:10px">Partagé</span>
-            <form method="post" action="{% url 'admin_dossier_acces_supprimer' dossier.pk acces.pk %}" style="display:inline"
-              onsubmit="return confirm('Retirer l\'accès de {{ acces.user.username }} ?')">
-              {% csrf_token %}
-              <button type="submit" class="btn btn-danger btn-xs" style="padding:3px 8px;font-size:10px">✕</button>
-            </form>
-            {% endif %}
-          </div>
-        </div>
-        {% empty %}
-        <div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Aucun accès configuré.</div>
-        {% endfor %}
+  <div style="padding:0">
+    {% for acces in acces_list %}
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border)">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0">
+        {{ acces.user.get_initials }}
       </div>
-
-      <!-- Ajouter un accès — recherche dynamique -->
-      <div style="padding:14px 16px;border-top:1px solid var(--border);background:var(--gray);border-radius:0 0 var(--radius) var(--radius)">
-        <div style="font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Ajouter un accès</div>
-        {% if clients_disponibles %}
-        <div style="position:relative">
-          <input type="text" id="acceSearch"
-            placeholder="Nom ou identifiant..."
-            autocomplete="off"
-            style="width:100%;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;font-family:inherit;outline:none;transition:border-color .2s"
-            oninput="filterAccesClients(this.value)"
-            onfocus="showAccesDrop()"
-            onblur="setTimeout(hideAccesDrop, 200)">
-          <div id="accesDrop"
-            style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow-md);z-index:300;max-height:200px;overflow-y:auto">
-            {% for c in clients_disponibles %}
-            <div class="acces-option"
-              data-search="{{ c.last_name|lower|default:'' }} {{ c.username|lower }}"
-              data-uid="{{ c.pk }}"
-              onmousedown="selectAccesClient({{ c.pk }}, '{{ c.last_name|default:c.username|escapejs }} ({{ c.username }})')">
-              <div style="width:26px;height:26px;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">{{ c.get_initials }}</div>
-              <div style="min-width:0">
-                <div style="font-weight:600;font-size:12px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.last_name|default:"—" }}</div>
-                <div style="font-size:11px;color:var(--muted)">{{ c.username }}</div>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          {{ acces.user.last_name|default:acces.user.username }}
         </div>
-        <form method="post" action="{% url 'admin_dossier_acces_ajouter' dossier.pk %}" id="acceForm"
-          style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          {% csrf_token %}
-          <input type="hidden" name="user_id" id="acceUserId">
-          <div id="acceSelected"
-            style="display:none;font-size:12px;font-weight:600;color:var(--navy);background:rgba(11,31,58,.07);padding:5px 10px;border-radius:var(--radius-sm);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
-          <button type="submit" id="acceSubmit" class="btn btn-secondary btn-sm" style="display:none;white-space:nowrap">+ Ajouter</button>
-          <button type="button" id="acceReset" class="btn btn-outline btn-sm" style="display:none" onclick="resetAccesForm()">✕</button>
-        </form>
+        <div style="font-size:11px;color:var(--muted)">
+          <code style="background:var(--gray);padding:1px 5px;border-radius:3px;font-size:10px">{{ acces.user.username }}</code>
+          {% if acces.user.phone %} · {{ acces.user.phone }}{% endif %}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        {% if acces.est_proprietaire %}
+        <span class="badge badge-blue" style="font-size:10px">Principal</span>
         {% else %}
-        <div style="font-size:12px;color:var(--muted);padding:4px 0">Tous les clients ont déjà accès à ce dossier.</div>
+        <span class="badge badge-gray" style="font-size:10px">Partagé</span>
+        <form method="post" action="{% url 'admin_dossier_acces_supprimer' dossier.pk acces.pk %}" style="display:inline"
+          onsubmit="return confirm('Retirer l\'accès de {{ acces.user.username }} ?')">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger btn-xs" style="padding:3px 8px;font-size:10px">✕</button>
+        </form>
         {% endif %}
       </div>
     </div>
+    {% empty %}
+    <div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Aucun accès configuré.</div>
+    {% endfor %}
+  </div>
+
+  <div style="padding:14px 16px;border-top:1px solid var(--border);background:var(--gray);border-radius:0 0 var(--radius) var(--radius)">
+    <div style="font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Ajouter un accès</div>
+    {% if clients_disponibles %}
+    <div style="position:relative">
+      <input type="text" id="acceSearch"
+        placeholder="Nom ou identifiant..."
+        autocomplete="off"
+        style="width:100%;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;font-family:inherit;outline:none;transition:border-color .2s"
+        oninput="filterAccesClients(this.value)"
+        onfocus="showAccesDrop()"
+        onblur="setTimeout(hideAccesDrop, 200)">
+      <div id="accesDrop"
+        style="display:none;position:fixed;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);box-shadow:0 8px 32px rgba(11,31,58,.18);z-index:9999;max-height:220px;overflow-y:auto;min-width:260px">
+        {% for c in clients_disponibles %}
+        <div class="acces-option"
+          data-search="{{ c.last_name|lower|default:'' }} {{ c.username|lower }}"
+          data-uid="{{ c.pk }}"
+          onmousedown="selectAccesClient({{ c.pk }}, '{{ c.last_name|default:c.username|escapejs }} ({{ c.username }})')">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--gradient);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">{{ c.get_initials }}</div>
+          <div style="min-width:0">
+            <div style="font-weight:600;font-size:12px;text-transform:uppercase">{{ c.last_name|default:"—" }}</div>
+            <div style="font-size:11px;color:var(--muted)">{{ c.username }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <form method="post" action="{% url 'admin_dossier_acces_ajouter' dossier.pk %}" id="acceForm"
+      style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      {% csrf_token %}
+      <input type="hidden" name="user_id" id="acceUserId">
+      <div id="acceSelected"
+        style="display:none;font-size:12px;font-weight:600;color:var(--navy);background:rgba(11,31,58,.07);padding:5px 10px;border-radius:var(--radius-sm);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      <button type="submit" id="acceSubmit" class="btn btn-secondary btn-sm" style="display:none;white-space:nowrap">+ Ajouter</button>
+      <button type="button" id="acceReset" class="btn btn-outline btn-sm" style="display:none" onclick="resetAccesForm()">✕</button>
+    </form>
+    {% else %}
+    <div style="font-size:12px;color:var(--muted);padding:4px 0">Tous les clients ont déjà accès à ce dossier.</div>
     {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- HISTORIQUE -->
 
     <!-- HISTORIQUE -->
     <div class="card">
@@ -458,7 +477,6 @@ async function selectAll(type, shouldCheck){
   }
 }
 
-/* ── ACCÈS DYNAMIQUE ── */
 function filterAccesClients(q){
   q = q.toLowerCase().trim();
   let hasVisible = false;
@@ -468,15 +486,28 @@ function filterAccesClients(q){
     if(show) hasVisible = true;
   });
   const drop = document.getElementById('accesDrop');
-  if(drop) drop.style.display = hasVisible ? 'block' : 'none';
+  if(drop){
+    if(hasVisible){ positionDrop(); drop.style.display = 'block'; }
+    else { drop.style.display = 'none'; }
+  }
+}
+
+function positionDrop(){
+  const input = document.getElementById('acceSearch');
+  const drop = document.getElementById('accesDrop');
+  if(!input || !drop) return;
+  const rect = input.getBoundingClientRect();
+  // position:fixed → coordonnées viewport directement, sans scrollY
+  drop.style.top = (rect.bottom + 4) + 'px';
+  drop.style.left = rect.left + 'px';
+  drop.style.width = rect.width + 'px';
 }
 
 function showAccesDrop(){
   const drop = document.getElementById('accesDrop');
   if(!drop) return;
-  const opts = document.querySelectorAll('.acces-option');
-  const hasVisible = Array.from(opts).some(o => o.style.display !== 'none');
-  if(hasVisible) drop.style.display = 'block';
+  const hasVisible = Array.from(document.querySelectorAll('.acces-option')).some(o => o.style.display !== 'none');
+  if(hasVisible){ positionDrop(); drop.style.display = 'block'; }
 }
 
 function hideAccesDrop(){
@@ -487,7 +518,7 @@ function hideAccesDrop(){
 function selectAccesClient(uid, label){
   document.getElementById('acceUserId').value = uid;
   document.getElementById('acceSearch').value = '';
-  filterAccesClients(''); // reset filtre
+  filterAccesClients('');
   hideAccesDrop();
   const sel = document.getElementById('acceSelected');
   sel.textContent = label;
@@ -504,5 +535,10 @@ function resetAccesForm(){
   document.getElementById('acceReset').style.display = 'none';
   filterAccesClients('');
 }
+
+window.addEventListener('scroll', ()=>{
+  const drop = document.getElementById('accesDrop');
+  if(drop && drop.style.display === 'block') positionDrop();
+}, {passive: true});
 </script>
 {% endblock %}

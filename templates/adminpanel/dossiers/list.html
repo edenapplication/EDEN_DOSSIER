@@ -181,19 +181,30 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
   <button class="bulk-cancel" onclick="clearSelection()">✕</button>
 </div>
 
-<!-- MODALS AVANCEMENT -->
+<!-- MODAL AVANCEMENT TECH -->
 <div class="modal-overlay" id="modalTech">
   <div class="modal-box">
     <div class="modal-title">⚙ Avancement Technique</div>
     <div class="modal-sub">Cochez les étapes à appliquer à tous les dossiers sélectionnés</div>
+    <div style="background:linear-gradient(135deg,rgba(11,31,58,.06),rgba(193,18,31,.04));border:1px solid rgba(11,31,58,.12);border-radius:var(--radius-sm);padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:12px;color:var(--muted);font-weight:500">Total sélectionné</span>
+      <span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:300;color:var(--navy)" id="totalTechModal">0%</span>
+    </div>
     <div id="modalTechEtapes">
       {% for etape in etapes_tech %}
       <div class="etape-check-row">
-        <input type="checkbox" class="etape-check-box" id="techEtape{{ etape.pk }}" value="{{ etape.pk }}" name="etapes_tech_modal">
+        <input type="checkbox" class="etape-check-box etape-tech-check"
+          id="techEtape{{ etape.pk }}"
+          value="{{ etape.pk }}"
+          data-pct="{{ etape.percentage }}"
+          name="etapes_tech_modal"
+          onchange="updateTotalModal('tech')">
         <label class="etape-label" for="techEtape{{ etape.pk }}">{{ etape.name }}</label>
         <span class="etape-pct-label">{{ etape.percentage }}%</span>
       </div>
-      {% empty %}<p style="color:var(--muted);text-align:center;padding:16px">Aucune étape technique.</p>{% endfor %}
+      {% empty %}
+      <p style="color:var(--muted);text-align:center;padding:16px">Aucune étape technique.</p>
+      {% endfor %}
     </div>
     <div style="display:flex;gap:10px;margin-top:20px">
       <button class="bulk-apply bulk-primary" onclick="submitAvancement('tech')">Appliquer →</button>
@@ -202,18 +213,30 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
   </div>
 </div>
 
+<!-- MODAL AVANCEMENT MORC -->
 <div class="modal-overlay" id="modalMorc">
   <div class="modal-box">
     <div class="modal-title">🗺 Avancement Morcellement</div>
     <div class="modal-sub">Le technique doit être à 100% sur tous les dossiers sélectionnés.</div>
+    <div style="background:linear-gradient(135deg,rgba(11,31,58,.06),rgba(193,18,31,.04));border:1px solid rgba(11,31,58,.12);border-radius:var(--radius-sm);padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:12px;color:var(--muted);font-weight:500">Total sélectionné</span>
+      <span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:300;color:var(--navy)" id="totalMorcModal">0%</span>
+    </div>
     <div id="modalMorcEtapes">
       {% for etape in etapes_morc %}
       <div class="etape-check-row">
-        <input type="checkbox" class="etape-check-box" id="morcEtape{{ etape.pk }}" value="{{ etape.pk }}" name="etapes_morc_modal">
+        <input type="checkbox" class="etape-check-box etape-morc-check"
+          id="morcEtape{{ etape.pk }}"
+          value="{{ etape.pk }}"
+          data-pct="{{ etape.percentage }}"
+          name="etapes_morc_modal"
+          onchange="updateTotalModal('morc')">
         <label class="etape-label" for="morcEtape{{ etape.pk }}">{{ etape.name }}</label>
         <span class="etape-pct-label">{{ etape.percentage }}%</span>
       </div>
-      {% empty %}<p style="color:var(--muted);text-align:center;padding:16px">Aucune étape morcellement.</p>{% endfor %}
+      {% empty %}
+      <p style="color:var(--muted);text-align:center;padding:16px">Aucune étape morcellement.</p>
+      {% endfor %}
     </div>
     <div style="display:flex;gap:10px;margin-top:20px">
       <button class="bulk-apply bulk-primary" onclick="submitAvancement('morc')">Appliquer →</button>
@@ -451,5 +474,15 @@ function clearSelection(){
 document.querySelectorAll('.modal-overlay').forEach(overlay=>{
   overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('open');});
 });
+
+function updateTotalModal(type) {
+  const selector = type === 'tech' ? '.etape-tech-check' : '.etape-morc-check';
+  const labelId = type === 'tech' ? 'totalTechModal' : 'totalMorcModal';
+  let total = 0;
+  document.querySelectorAll(selector + ':checked').forEach(cb => {
+    total += parseInt(cb.dataset.pct || 0);
+  });
+  document.getElementById(labelId).textContent = total + '%';
+}
 </script>
 {% endblock %}

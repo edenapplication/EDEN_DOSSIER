@@ -28,6 +28,10 @@ class EtapeGlobale(models.Model):
     percentage = models.PositiveIntegerField(verbose_name="Pourcentage (%)")
     order = models.IntegerField(default=0, verbose_name="Ordre")
     description = models.TextField(blank=True, verbose_name="Description (HTML autorisé)")
+    duree_jours = models.PositiveIntegerField(
+        default=7,
+        help_text="Nombre de jours avant passage automatique à cette étape"
+    )
 
     class Meta:
         ordering = ['type', 'order']
@@ -106,17 +110,78 @@ class Dossier(models.Model):
         return self.get_jours_existence() >= 45 and not self.is_complete()
 
     def planifier_cochages_automatiques(self):
-        for type_ in ['technique', 'morcellement']:
-            etapes = list(EtapeGlobale.objects.filter(type=type_))
-            if len(etapes) <= 1:
-                continue
-            for idx, etape in enumerate(etapes[:-1]):
-                date_coche = self.created_at + datetime.timedelta(weeks=idx + 1)
-                cochee, _ = EtapeCochee.objects.get_or_create(dossier=self, etape=etape)
-                cochee.date_auto_coche = date_coche
+        """
+        Coche automatiquement les étapes selon leur duree_jours.
+        Règles :
+        - Technique : toutes auto sauf la DERNIÈRE (manuelle)
+        - Morcellement : la PREMIÈRE est manuelle obligatoire,
+        les suivantes sont auto sauf la DERNIÈRE (manuelle)
+        """
+        from django.utils import timezone
+        now = timezone.now()
+        etapes_tech = list(EtapeGlobale.objects.filter(type='technique').order_by('order'))
+        etapes_morc = list(EtapeGlobale.objects.filter(type='morcellement').order_by('order'))
+
+        # ── TECHNIQUE ──
+        date_reference = self.created_at
+        for i, etape in enumerate(etapes_tech):
+            is_last = (i == len(etapes_tech) - 1)
+            if is_last:
+                break  # dernière = manuelle, on ne touche pas
+            date_cible = date_reference + datetime.timedelta(days=etape.duree_jours)
+            cochee, _ = EtapeCochee.objects.get_or_create(dossier=self, etape=etape)
+            if now >= date_cible and not cochee.is_done:
+                cochee.is_done = True
+                cochee.done_at = date_cible
                 cochee.save()
+            if cochee.is_done:
+                date_reference = cochee.done_at or date_cible
+            else:
+                break
+
+        # ── MORCELLEMENT ──
+        if not self.is_technique_complete():
+            return
+        if not etapes_morc:
+            return
+
+        premiere_morc = etapes_morc[0]
+
+        # NE PAS utiliser get_or_create ici — on ne veut pas créer l'entrée
+        # si elle n'existe pas encore (l'admin doit la cocher manuellement)
+        cochee_premiere = EtapeCochee.objects.filter(
+            dossier=self, etape=premiere_morc
+        ).first()
+
+        if not cochee_premiere or not cochee_premiere.is_done:
+            # Première étape pas encore cochée manuellement → rien n'avance
+            return
+
+        # La date de référence part de quand la première a été cochée
+        date_reference = cochee_premiere.done_at or now
+
+        # Étapes suivantes : auto sauf la dernière
+        for i, etape in enumerate(etapes_morc):
+            if i == 0:
+                continue  # première = manuelle, déjà gérée
+            is_last = (i == len(etapes_morc) - 1)
+            if is_last:
+                break  # dernière = manuelle, on ne touche pas
+            date_cible = date_reference + datetime.timedelta(days=etape.duree_jours)
+            cochee, _ = EtapeCochee.objects.get_or_create(dossier=self, etape=etape)
+            if now >= date_cible and not cochee.is_done:
+                cochee.is_done = True
+                cochee.done_at = date_cible
+                cochee.save()
+            if cochee.is_done:
+                date_reference = cochee.done_at or date_cible
+            else:
+                break
+
 
     def appliquer_cochages_automatiques(self):
+        self.planifier_cochages_automatiques()
+
         now = timezone.now()
         cochees = self.etapes_cochees.filter(
             date_auto_coche__isnull=False,
@@ -250,4 +315,31 @@ class DossierAcces(models.Model):
 
     def __str__(self):
         return f"{self.user.username} → {self.dossier.reference}"
+    
+class DossierCodeAcces(models.Model):
+    """
+    Code/mot d'accès libre lié à un dossier.
+    Peut être associé à un user (créé auto) ou juste un mot-clé de recherche.
+    """
+    dossier = models.ForeignKey(
+        'Dossier', on_delete=models.CASCADE, related_name='codes_acces'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='codes_acces_dossier',
+        null=True, blank=True
+    )
+    code = models.CharField(max_length=120)
+    label = models.CharField(max_length=100, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        # Un même code peut exister sur plusieurs dossiers
+        # (ex: "bonjour" sur dossier 5 et dossier 47)
+
+    def __str__(self):
+        return f"{self.code} → {self.dossier.reference}"
     
