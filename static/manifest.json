@@ -3,7 +3,7 @@
   "short_name": "EDEN",
   "description": "Gestion des avancement des dossiers EDEN GROUP",
   "start_url": "/",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "#ffffff",
   "theme_color": "#1d4ed8",
   "icons": [
