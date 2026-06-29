@@ -1,9 +1,19 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}EDEN GROUP — Immobilier Premium{% endblock %}</title>
+<link rel="manifest" href="{% static 'manifest.json' %}">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+<link rel="icon" href="{% static 'icons/icon-192.png' %}">
+<link rel="apple-touch-icon" href="{% static 'icons/icon-192.png' %}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -276,6 +286,18 @@ footer{background:var(--navy);color:rgba(255,255,255,.85);padding:10px 0 20px}
 </footer>
 
 <script>
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("{% static 'service-worker.js' %}")
+            .then((registration) => {
+                console.log("Service Worker enregistré :", registration.scope);
+            })
+            .catch((error) => {
+                console.error("Erreur Service Worker :", error);
+            });
+    });
+}
+
 // NAV SCROLL
 const nav=document.getElementById('nav');
 window.addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>60));
