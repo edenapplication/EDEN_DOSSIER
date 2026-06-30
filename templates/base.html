@@ -379,7 +379,7 @@ async function sendChatMessage(text){
     const data=await res.json();
     typing.remove();
     addAIMsg(data.response||"Je transmets votre question à notre équipe.");
-  }catch(e){typing.remove();addAIMsg("Désolé, une erreur est survenue. Contactez-nous au +237 6XX XXX XXX.");}
+  }catch(e){typing.remove();addAIMsg("Pourplus d'assistance, Contactez-nous au +237 653 35 05 03.");}
 }
 </script>
 {% block extra_js %}{% endblock %}
