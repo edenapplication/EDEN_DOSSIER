@@ -6,9 +6,9 @@ from .models import ChatbotKnowledge, ChatbotUnknown
 
 
 FALLBACK_RESPONSES = [
-    "Je transmets votre question à notre équipe. Un conseiller Eden Group vous répondra très prochainement.",
+    "Je transmets votre question à notre équipe. Un conseiller EDEN GROUP vous répondra très prochainement.",
     "Excellente question ! Notre équipe spécialisée va vous apporter une réponse personnalisée sous 24h.",
-    "Je note votre demande. Pour toute urgence, contactez-nous directement au +237 6XX XXX XXX.",
+    "Je note votre demande. Pour toute urgence, contactez-nous directement au +237 653 35 05 03.",
 ]
 
 GREETINGS = ['bonjour', 'bonsoir', 'salut', 'hello', 'hi', 'bonne journée']
@@ -18,7 +18,7 @@ def get_chatbot_response(message):
     msg_lower = message.lower().strip()
 
     if any(g in msg_lower for g in GREETINGS):
-        return "Bonjour ! Je suis Eden Assistant, votre conseiller immobilier personnel. Comment puis-je vous aider aujourd'hui ?"
+        return "Bonjour ! Je suis Martin Assistant, votre conseiller immobilier personnel. Comment puis-je vous aider aujourd'hui ?"
 
     knowledges = ChatbotKnowledge.objects.filter(is_active=True)
     best_match = None
