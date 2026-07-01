@@ -24,16 +24,16 @@ def login_view(request):
             try:
                 user = User.objects.get(username=username)
                 if not user.is_active:
-                    ctx['form_client_error'] = "Ce compte est désactivé. Contactez Eden Group."
+                    ctx['form_client_error'] = "Ce compte est désactivé. Contactez EDEN GROUP."
                     ctx['client_username'] = username
                 elif not user.is_client_role():
-                    ctx['form_client_error'] = "Identifiant introuvable. Contactez Eden Group."
+                    ctx['form_client_error'] = "Identifiant introuvable. Contactez EDEN GROUP."
                     ctx['client_username'] = username
                 else:
                     login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                     return redirect('dashboard')
             except User.DoesNotExist:
-                ctx['form_client_error'] = "Identifiant introuvable. Contactez Eden Group."
+                ctx['form_client_error'] = "Identifiant introuvable. Contactez EDEN GROUP."
                 ctx['client_username'] = username
 
         elif login_type == 'admin':
