@@ -6,7 +6,7 @@ import datetime
 
 class IntituleDossier(models.Model):
     name = models.CharField(max_length=200, verbose_name="Intitulé")
-    description = models.TextField(blank=True)
+    description = models.TextField(null=True, blank=True, default=None)
     image = models.ImageField(upload_to='intitules/', null=True, blank=True, verbose_name="Image de fond")
 
     class Meta:
@@ -55,7 +55,7 @@ class Dossier(models.Model):
         verbose_name="Intitulé"
     )
     reference = models.CharField(max_length=60, unique=True, verbose_name="Référence", blank=True)
-    description = models.TextField(blank=True)
+    description = models.TextField(null=True, blank=True, default=None)
     superficie = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Superficie (m²)")
     date_paiement = models.DateField(null=True, blank=True, verbose_name="Date de paiement")
     photo = models.ImageField(upload_to='dossiers/', null=True, blank=True, verbose_name="Photo du dossier")
