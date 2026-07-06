@@ -10,6 +10,27 @@
 
 {% block extra_css %}
 <style>
+  .alert-banner {
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+.alert-red {
+    background: rgba(193,18,31,0.1);
+    border: 1px solid rgba(193,18,31,0.3);
+    color: var(--red);
+}
+.alert-orange {
+    background: rgba(251,191,36,0.1);
+    border: 1px solid rgba(251,191,36,0.3);
+    color: #92400e;
+}
+.alert-green {
+    background: rgba(6,95,70,0.1);
+    border: 1px solid rgba(6,95,70,0.3);
+    color: #065f46;
+}
 .filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
 .search-input{flex:1;min-width:160px;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
 .search-input:focus{border-color:var(--navy)}
@@ -185,7 +206,10 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
 <div class="modal-overlay" id="modalTech">
   <div class="modal-box">
     <div class="modal-title">⚙ Avancement Technique</div>
-    <div class="modal-sub">Cochez les étapes à appliquer à tous les dossiers sélectionnés</div>
+    <div class="modal-sub">
+      Cochez les étapes à appliquer.<br>
+      <strong style="color:var(--red)">Aucune case cochée = tout décocher</strong>
+    </div>
     <div style="background:linear-gradient(135deg,rgba(11,31,58,.06),rgba(193,18,31,.04));border:1px solid rgba(11,31,58,.12);border-radius:var(--radius-sm);padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
       <span style="font-size:12px;color:var(--muted);font-weight:500">Total sélectionné</span>
       <span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:300;color:var(--navy)" id="totalTechModal">0%</span>
@@ -217,7 +241,11 @@ tr.selected-row td{background:rgba(11,31,58,.03)}
 <div class="modal-overlay" id="modalMorc">
   <div class="modal-box">
     <div class="modal-title">🗺 Avancement Morcellement</div>
-    <div class="modal-sub">Le technique doit être à 100% sur tous les dossiers sélectionnés.</div>
+    <div class="modal-sub">
+      Cochez les étapes à appliquer.<br>
+      <strong style="color:var(--red)">Aucune case cochée = tout décocher</strong><br>
+      <span style="font-size:12px;color:#92400e">Vous pouvez toujours décocher, même si le technique n'est pas terminé.</span>
+    </div>
     <div style="background:linear-gradient(135deg,rgba(11,31,58,.06),rgba(193,18,31,.04));border:1px solid rgba(11,31,58,.12);border-radius:var(--radius-sm);padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
       <span style="font-size:12px;color:var(--muted);font-weight:500">Total sélectionné</span>
       <span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:300;color:var(--navy)" id="totalMorcModal">0%</span>
@@ -445,19 +473,35 @@ function applyBulk(){
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
-function submitAvancement(type){
-  const modalId=type==='tech'?'modalTech':'modalMorc';
-  const inputName=type==='tech'?'etapes_tech_modal':'etapes_morc_modal';
-  const hiddenContainerId=type==='tech'?'etapesTechInputs':'etapesMorcInputs';
-  const checked=document.querySelectorAll(`#modal${type==='tech'?'Tech':'Morc'} input[name="${inputName}"]:checked`);
-  const container=document.getElementById(hiddenContainerId);
-  container.innerHTML='';
-  checked.forEach(cb=>{
-    const inp=document.createElement('input');
-    inp.type='hidden';inp.name=type==='tech'?'etapes_tech_ids':'etapes_morc_ids';inp.value=cb.value;
-    container.appendChild(inp);
-  });
-  document.getElementById('bulkActionHidden').value='avancement_'+type;
+function submitAvancement(type) {
+  const modalId = type === 'tech' ? 'modalTech' : 'modalMorc';
+  const inputName = type === 'tech' ? 'etapes_tech_modal' : 'etapes_morc_modal';
+  const hiddenContainerId = type === 'tech' ? 'etapesTechInputs' : 'etapesMorcInputs';
+  
+  const checkedBoxes = document.querySelectorAll(`#modal${type==='tech'?'Tech':'Morc'} input[name="${inputName}"]:checked`);
+  const container = document.getElementById(hiddenContainerId);
+  container.innerHTML = '';
+
+  // ✅ NOUVELLE LOGIQUE :
+  // Si aucune case n'est cochée → on envoie un indicateur "tout décocher"
+  if (checkedBoxes.length === 0) {
+    const resetInput = document.createElement('input');
+    resetInput.type = 'hidden';
+    resetInput.name = type === 'tech' ? 'reset_tech' : 'reset_morc';
+    resetInput.value = '1';
+    container.appendChild(resetInput);
+  } else {
+    // Sinon on envoie les étapes sélectionnées
+    checkedBoxes.forEach(cb => {
+      const inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = type === 'tech' ? 'etapes_tech_ids' : 'etapes_morc_ids';
+      inp.value = cb.value;
+      container.appendChild(inp);
+    });
+  }
+
+  document.getElementById('bulkActionHidden').value = 'avancement_' + type;
   closeModal(modalId);
   document.getElementById('bulkForm').submit();
 }

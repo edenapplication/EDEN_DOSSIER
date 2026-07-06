@@ -811,7 +811,7 @@ def admin_dossier_create(request):
 def admin_dossier_detail(request, pk):
     from apps.dossiers.models import DossierAcces
     dossier = get_object_or_404(Dossier, pk=pk)
-    dossier.appliquer_cochages_automatiques()
+    dossier.appliquer_cochages_automatiques(exclude_first_morc=True)
     etapes_tech = dossier.get_etapes_technique()
     etapes_morc = dossier.get_etapes_morcellement()
     historique = dossier.historique.all()[:30]
@@ -899,23 +899,50 @@ def admin_dossier_acces_supprimer(request, pk, acces_pk):
 def admin_etape_toggle(request, dossier_pk, etape_pk):
     dossier = get_object_or_404(Dossier, pk=dossier_pk)
     etape = get_object_or_404(EtapeGlobale, pk=etape_pk)
+
+    # Vérification morcellement
     if etape.type == 'morcellement' and not dossier.is_technique_complete():
-        return JsonResponse({'status': 'error', 'message': 'Le technique doit être à 100% d\'abord.'}, status=403)
+        return JsonResponse({'status': 'error', 'message': 'Le technique doit être à 100% avant de modifier le morcellement.'}, status=403)
+
     cochee, _ = EtapeCochee.objects.get_or_create(dossier=dossier, etape=etape)
+
+    # ✅ Autorisation explicite du décochage même pour les étapes auto
     cochee.is_done = not cochee.is_done
-    cochee.done_at = timezone.now() if cochee.is_done else None
-    cochee.done_by = request.user if cochee.is_done else None
-    if not cochee.is_done:
+
+    if cochee.is_done:
+        cochee.done_at = timezone.now()
+        cochee.done_by = request.user
+        # On peut garder la trace auto ou la supprimer (recommandé pour flexibilité)
+        # cochee.date_auto_coche = None  # Option : supprimer le statut auto
+    else:
+        cochee.done_at = None
         cochee.done_by = None
+        cochee.date_auto_coche = None  # Important : on enlève le marquage auto
+
     cochee.save()
-    action = "validée manuellement" if cochee.is_done else "annulée"
+
+    action = "validée manuellement" if cochee.is_done else "décochée manuellement"
+    DossierHistorique.objects.create(
+        dossier=dossier,
+        message=f"Étape '{etape.name}' {action}",
+        created_by=request.user
+    )
+
+    # Données pour le frontend
     prog = dossier.get_progression_technique() if etape.type == 'technique' else dossier.get_progression_morcellement()
     total = dossier.get_total_technique() if etape.type == 'technique' else dossier.get_total_morcellement()
-    DossierHistorique.objects.create(dossier=dossier, message=f"Étape '{etape.name}' {action} — {etape.get_type_display()} : {prog}%", created_by=request.user)
     pct_bar = round(prog / total * 100) if total > 0 else 0
     current = dossier.get_current_etape_technique() if etape.type == 'technique' else dossier.get_current_etape_morcellement()
-    return JsonResponse({'status': 'ok', 'is_done': cochee.is_done, 'progression': prog, 'pct_bar': pct_bar, 'type': etape.type, 'morc_unlocked': dossier.is_technique_complete(), 'current_etape_name': current.name if current else '', 'current_etape_desc': current.description if current else ''})
 
+    return JsonResponse({
+        'status': 'ok',
+        'is_done': cochee.is_done,
+        'progression': prog,
+        'pct_bar': pct_bar,
+        'current_etape_name': current.name if current else '',
+        'current_etape_desc': current.description if current else '',
+        'morc_unlocked': dossier.is_technique_complete(),
+    })
 
 @admin_required
 def admin_dossier_edit(request, pk):
@@ -1092,6 +1119,7 @@ def admin_dossiers_bulk(request):
         if not ids:
             messages.error(request, "Aucun dossier sélectionné.")
             return redirect('admin_dossiers')
+        
         dossiers = Dossier.objects.filter(pk__in=ids)
 
         if action == 'supprimer':
@@ -1103,43 +1131,83 @@ def admin_dossiers_bulk(request):
             return _export_dossiers_excel(dossiers)
 
         elif action == 'avancement_tech':
+            reset_tech = request.POST.get('reset_tech') == '1'
             etape_ids = request.POST.getlist('etapes_tech_ids')
+           
             for dossier in dossiers:
                 for etape in EtapeGlobale.objects.filter(type='technique'):
                     cochee, _ = EtapeCochee.objects.get_or_create(dossier=dossier, etape=etape)
-                    should_done = str(etape.pk) in etape_ids
-                    if cochee.is_done != should_done:
-                        cochee.is_done = should_done
-                        cochee.done_at = timezone.now() if should_done else None
-                        cochee.done_by = request.user if should_done else None
-                        cochee.save()
+                   
+                    if reset_tech:
+                        cochee.is_done = False
+                        cochee.done_at = None
+                        cochee.done_by = None
+                        cochee.date_auto_coche = None
+                    else:
+                        should_done = str(etape.pk) in etape_ids
+                        if cochee.is_done != should_done:
+                            cochee.is_done = should_done
+                            cochee.done_at = timezone.now() if should_done else None
+                            cochee.done_by = request.user if should_done else None
+                   
+                    cochee.save()
+               
                 DossierHistorique.objects.create(
                     dossier=dossier,
-                    message=f"Avancement technique mis à jour en masse ({dossier.get_progression_technique()}%)",
+                    message=f"Avancement technique réinitialisé / mis à jour ({dossier.get_progression_technique()}%)",
                     created_by=request.user
                 )
             messages.success(request, f"Avancement technique appliqué à {dossiers.count()} dossier(s).")
 
         elif action == 'avancement_morc':
-            if not all(d.is_technique_complete() for d in dossiers):
-                messages.error(request, "Certains dossiers sélectionnés n'ont pas leur technique à 100%. Impossible d'appliquer le morcellement.")
-                return redirect('admin_dossiers')
+            reset_morc = request.POST.get('reset_morc') == '1'
             etape_ids = request.POST.getlist('etapes_morc_ids')
+            
+            updated = 0
+            blocked = 0
+            
             for dossier in dossiers:
+                changed = False
                 for etape in EtapeGlobale.objects.filter(type='morcellement'):
                     cochee, _ = EtapeCochee.objects.get_or_create(dossier=dossier, etape=etape)
-                    should_done = str(etape.pk) in etape_ids
-                    if cochee.is_done != should_done:
-                        cochee.is_done = should_done
-                        cochee.done_at = timezone.now() if should_done else None
-                        cochee.done_by = request.user if should_done else None
-                        cochee.save()
-                DossierHistorique.objects.create(
-                    dossier=dossier,
-                    message=f"Avancement morcellement mis à jour en masse ({dossier.get_progression_morcellement()}%)",
-                    created_by=request.user
-                )
-            messages.success(request, f"Avancement morcellement appliqué à {dossiers.count()} dossier(s).")
+                    
+                    if reset_morc:
+                        # ✅ Tout décocher est TOUJOURS autorisé
+                        if cochee.is_done:
+                            cochee.is_done = False
+                            cochee.done_at = None
+                            cochee.done_by = None
+                            cochee.date_auto_coche = None
+                            changed = True
+                    else:
+                        should_done = str(etape.pk) in etape_ids
+                        if should_done and not dossier.is_technique_complete():
+                            blocked += 1
+                            continue  # On bloque seulement le COCHAGE
+                        
+                        if cochee.is_done != should_done:
+                            cochee.is_done = should_done
+                            cochee.done_at = timezone.now() if should_done else None
+                            cochee.done_by = request.user if should_done else None
+                            changed = True
+                    
+                    cochee.save()
+                
+                if changed:
+                    DossierHistorique.objects.create(
+                        dossier=dossier,
+                        message=f"Avancement morcellement modifié ({dossier.get_progression_morcellement()}%)",
+                        created_by=request.user
+                    )
+                    updated += 1
+
+            if blocked > 0:
+                messages.error(request, f"{blocked} action(s) de cochage bloquée(s) — le technique n'est pas à 100%.")
+            
+            if updated > 0:
+                messages.success(request, f"Avancement morcellement mis à jour sur {updated} dossier(s).")
+            elif blocked == 0:
+                messages.info(request, "Aucune modification effectuée.")
 
         elif action == 'superficie':
             nouvelle_superficie = request.POST.get('nouvelle_superficie', '').strip()
@@ -1151,7 +1219,7 @@ def admin_dossiers_bulk(request):
                 count = dossiers.count()
                 dossiers.update(superficie=val)
                 for d in Dossier.objects.filter(pk__in=ids):
-                        DossierHistorique.objects.create(
+                    DossierHistorique.objects.create(
                         dossier=d,
                         message=f"Superficie mise à jour en masse : {val} m²",
                         created_by=request.user
@@ -1159,7 +1227,6 @@ def admin_dossiers_bulk(request):
                 messages.success(request, f"Superficie ({val} m²) appliquée à {count} dossier(s).")
             except ValueError:
                 messages.error(request, "Superficie invalide.")
-
 
     return redirect('admin_dossiers')
 
