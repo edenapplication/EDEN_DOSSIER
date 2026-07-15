@@ -111,67 +111,94 @@ class Dossier(models.Model):
 
     def planifier_cochages_automatiques(self):
         """
-        Planifie les dates de coche automatique selon les règles métier.
+        Règles strictes :
+        - Technique : toutes auto sauf la DERNIÈRE (manuelle)
+        - Morcellement : bloqué tant que technique < 100%
+                        bloqué tant que la 1ère étape n'est pas cochée MANUELLEMENT (done_by non null)
+                        les intermédiaires sont auto
+                        la DERNIÈRE est manuelle
         """
         now = timezone.now()
-
-        # ===================== TECHNIQUE =====================
         etapes_tech = list(EtapeGlobale.objects.filter(type='technique').order_by('order'))
-        date_ref = self.created_at
+        etapes_morc = list(EtapeGlobale.objects.filter(type='morcellement').order_by('order'))
 
+        # ── TECHNIQUE ──
+        date_reference = self.created_at
         for i, etape in enumerate(etapes_tech):
-            if i == len(etapes_tech) - 1:   # dernière étape = manuelle
-                break
-            date_cible = date_ref + datetime.timedelta(days=etape.duree_jours)
-            
+            is_last = (i == len(etapes_tech) - 1)
+            if is_last:
+                break  # dernière = manuelle, jamais touchée
+
+            date_cible = date_reference + datetime.timedelta(days=etape.duree_jours)
             cochee, _ = EtapeCochee.objects.get_or_create(dossier=self, etape=etape)
+
             if now >= date_cible and not cochee.is_done:
                 cochee.is_done = True
                 cochee.done_at = date_cible
                 cochee.date_auto_coche = date_cible
+                cochee.done_by = None  # auto = pas de done_by
                 cochee.save()
+                DossierHistorique.objects.get_or_create(
+                    dossier=self,
+                    message=f"Étape '{etape.name}' cochée automatiquement"
+                )
 
             if cochee.is_done:
-                date_ref = cochee.done_at or date_cible
+                date_reference = cochee.done_at or date_cible
             else:
-                break
+                break  # pas encore atteinte → les suivantes non plus
 
-        # ===================== MORCELLEMENT =====================
+        # ── MORCELLEMENT ──
+        # Condition 1 : technique doit être à 100%
         if not self.is_technique_complete():
             return
 
-        etapes_morc = list(EtapeGlobale.objects.filter(type='morcellement').order_by('order'))
+        # Condition 2 : il doit y avoir des étapes morcellement
         if not etapes_morc:
             return
 
-        # Première étape = manuelle obligatoire
-        premiere = etapes_morc[0]
-        cochee_premiere = EtapeCochee.objects.filter(dossier=self, etape=premiere).first()
+        # Condition 3 : la première étape doit être cochée MANUELLEMENT
+        # (done_by non null = cochée par un admin, pas automatiquement)
+        premiere_morc = etapes_morc[0]
+        cochee_premiere = EtapeCochee.objects.filter(
+            dossier=self,
+            etape=premiere_morc,
+            is_done=True,
+            done_by__isnull=False  # obligatoirement cochée par un humain
+        ).first()
 
-        if not cochee_premiere or not cochee_premiere.is_done:
-            return  # On attend le cochage manuel
+        if not cochee_premiere:
+            return  # première étape pas encore cochée manuellement → rien n'avance
 
-        date_ref = cochee_premiere.done_at or now
+        date_reference = cochee_premiere.done_at or now
 
+        # Étapes intermédiaires : auto
+        # Dernière étape : manuelle
         for i, etape in enumerate(etapes_morc):
-            if i == 0:  # première étape → ignorée (manuelle)
-                continue
-            if i == len(etapes_morc) - 1:  # dernière étape = manuelle
-                break
+            if i == 0:
+                continue  # première = manuelle, jamais touchée ici
+            is_last = (i == len(etapes_morc) - 1)
+            if is_last:
+                break  # dernière = manuelle, jamais touchée
 
-            date_cible = date_ref + datetime.timedelta(days=etape.duree_jours)
-            
+            date_cible = date_reference + datetime.timedelta(days=etape.duree_jours)
             cochee, _ = EtapeCochee.objects.get_or_create(dossier=self, etape=etape)
+
             if now >= date_cible and not cochee.is_done:
                 cochee.is_done = True
                 cochee.done_at = date_cible
                 cochee.date_auto_coche = date_cible
+                cochee.done_by = None  # auto
                 cochee.save()
+                DossierHistorique.objects.get_or_create(
+                    dossier=self,
+                    message=f"Étape '{etape.name}' cochée automatiquement"
+                )
 
             if cochee.is_done:
-                date_ref = cochee.done_at or date_cible
+                date_reference = cochee.done_at or date_cible
             else:
-                break
+                break  # pas encore atteinte → les suivantes non plus
 
 
     def appliquer_cochages_automatiques(self, exclude_first_morc=False):
