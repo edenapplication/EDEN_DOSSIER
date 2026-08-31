@@ -15,11 +15,17 @@ def dossier_list(request):
 def dossier_detail(request, pk):
     if request.user.is_admin_role():
         return redirect('admin_dashboard')
+    
     dossier = get_object_or_404(
-    Dossier.objects.filter(acces__user=request.user),
-    pk=pk
-)
+        Dossier.objects.filter(acces__user=request.user),
+        pk=pk
+    )
+    
+    # Appliquer les coches automatiques effectives
     dossier.appliquer_cochages_automatiques()
+    
+    # Recharger le dossier depuis la base pour avoir les données à jour
+    dossier.refresh_from_db()
 
     property_images = []
     if dossier.photo:
