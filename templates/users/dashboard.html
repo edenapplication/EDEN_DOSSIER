@@ -43,7 +43,7 @@
     <div class="container" style="position:relative;z-index:1">
       <span class="eyebrow" style="color:rgba(255,255,255,.5)">Espace client</span>
       <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(30px,4vw,50px);font-weight:300;color:#fff;margin-top:8px;margin-bottom:8px">
-        Bonjour, {{ user.first_name|default:user.username }} 👋
+        Bonjour, {{ acces.user.last_name|default:user.username }} 👋
       </h1>
       <p style="color:rgba(255,255,255,.5);font-size:14px">Suivez l'avancement de vos dossiers fonciers.</p>
     </div>

@@ -101,7 +101,6 @@ USE_X_FORWARDED_HOST = True
 # Dans settings.py, assurez-vous que DEBUG est à True
 DEBUG = True
 
-# Ajoutez aussi ce logger pour voir les erreurs SQL
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -113,7 +112,7 @@ LOGGING = {
     'loggers': {
         'django.db.backends': {
             'handlers': ['console'],
-            'level': 'DEBUG',
+            'level': 'WARNING',
         },
         'django': {
             'handlers': ['console'],
