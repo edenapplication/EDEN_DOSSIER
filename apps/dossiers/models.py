@@ -79,7 +79,7 @@ class Dossier(models.Model):
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
-        
+
         if not self.reference:
             if self.date_paiement and isinstance(self.date_paiement, (datetime.date, datetime.datetime)):
                 date_str = self.date_paiement.strftime('%Y%m%d')
@@ -100,13 +100,9 @@ class Dossier(models.Model):
             else:
                 num = 1
             self.reference = f'EDG-{date_str}-{num:04d}'
-        
-        super().save(*args, **kwargs)
-        
-        # Si c'est un nouveau dossier, planifier les étapes automatiques
-        if is_new:
-            self.planifier_etapes_manquantes()
 
+        super().save(*args, **kwargs)
+    # ⚠️ AUCUN appel à planifier_etapes_manquantes() ici.
     def __str__(self):
         return f"{self.reference} — {self.get_title()}"
 
@@ -120,265 +116,151 @@ class Dossier(models.Model):
 
     def est_etape_manuelle(self, etape):
         """
-        Détermine si une étape doit être cochée manuellement ou automatiquement.
-        Règles :
-        - Technique : 1ère et dernière = MANUELLES, les autres = AUTO
-        - Morcellement : 1ère et dernière = MANUELLES, les autres = AUTO
+        Une étape est MANUELLE si c'est la 1ère ou la dernière du type
+        (selon EtapeGlobale.order). Sinon elle est AUTO.
         """
-        etapes_tech = list(EtapeGlobale.objects.filter(type='technique').order_by('order'))
-        etapes_morc = list(EtapeGlobale.objects.filter(type='morcellement').order_by('order'))
-        
-        if etape.type == 'technique':
-            # 1ère et dernière étape technique = manuelles
-            if etapes_tech:
-                if etape.pk == etapes_tech[0].pk or etape.pk == etapes_tech[-1].pk:
-                    return True
-            # Les autres techniques = automatiques
-            return False
-        
-        if etape.type == 'morcellement':
-            # 1ère et dernière étape morcellement = manuelles
-            if etapes_morc:
-                if etape.pk == etapes_morc[0].pk or etape.pk == etapes_morc[-1].pk:
-                    return True
-            # Les intermédiaires = automatiques
-            return False
-        
-        return True  # Par défaut, manuel si type inconnu
+        etapes = list(
+            EtapeGlobale.objects.filter(type=etape.type).order_by('order', 'pk')
+        )
+        if len(etapes) < 2:
+            return True
+        return etape.pk in (etapes[0].pk, etapes[-1].pk)
 
     def planifier_etapes_manquantes(self):
         """
-        Planifie les coches automatiques pour les étapes du milieu.
-        Règles :
-        - Technique : 1ère et dernière = MANUELLES, les autres = AUTO
-        - Morcellement : 1ère et dernière = MANUELLES, les autres = AUTO
-        
-        Cette méthode est appelée :
-        - À la création du dossier
-        - Quand une étape manuelle est cochée (pour relancer la planification)
+        Planifie les dates de cochage automatique des étapes INTERMÉDIAIRES.
+
+        Règles (Option A — temporel cumulatif) :
+        - 1ère étape du type (plus petit 'order') = MANUELLE, point de départ
+        - Dernière étape du type (plus grand 'order') = MANUELLE, jamais planifiée
+        - Étapes du milieu = AUTO, planifiées à partir du done_at de la 1ère,
+            avec cumul de duree_jours dans l'ordre.
+
+        Ne planifie RIEN tant que la 1ère étape n'est pas cochée manuellement.
+        Ne planifie RIEN pour le morcellement tant que le technique < 100%.
         """
         from django.db import transaction
-        
         with transaction.atomic():
             now = timezone.now()
-            etapes_tech = list(EtapeGlobale.objects.filter(type='technique').order_by('order'))
-            etapes_morc = list(EtapeGlobale.objects.filter(type='morcellement').order_by('order'))
-            
-            # ── TECHNIQUE ──
-            # Date de référence = date de création du dossier
-            date_reference = self.created_at or now
-            
-            for i, etape in enumerate(etapes_tech):
-                # 1ère étape = MANUELLE (ignorée)
-                if i == 0:
+
+            for type_ in ('technique', 'morcellement'):
+                if type_ == 'morcellement' and not self.is_technique_complete():
                     continue
-                
-                # Dernière étape = MANUELLE (ignorée)
-                if i == len(etapes_tech) - 1:
-                    continue
-                
-                # Étape du milieu = AUTO
-                cochee, created = EtapeCochee.objects.get_or_create(
-                    dossier=self, 
-                    etape=etape
+
+                etapes = list(
+                    EtapeGlobale.objects.filter(type=type_).order_by('order', 'pk')
                 )
-                
-                if not cochee.is_done and cochee.date_auto_coche is None:
-                    # Date calculée à partir de la date de création + durée cumulée
-                    jours_cumules = 0
-                    for j in range(1, i):  # On commence à 1 pour ignorer la 1ère étape
-                        jours_cumules += etapes_tech[j].duree_jours
-                    
-                    date_cible = date_reference + datetime.timedelta(days=jours_cumules)
-                    cochee.date_auto_coche = date_cible
-                    cochee.save()
-            
-            # ── MORCELLEMENT ──
-            # Vérifier si technique est complète
-            if not self.is_technique_complete():
-                return
-            
-            if not etapes_morc:
-                return
-            
-            # 1ère étape morcellement = MANUELLE (vérifier qu'elle est cochée)
-            premiere_morc = etapes_morc[0]
-            cochee_premiere = EtapeCochee.objects.filter(
-                dossier=self,
-                etape=premiere_morc,
-                is_done=True,
-                done_by__isnull=False
-            ).first()
-            
-            if not cochee_premiere:
-                return
-            
-            date_reference = cochee_premiere.done_at or now
-            
-            # Planifier les étapes du milieu
-            for i, etape in enumerate(etapes_morc):
-                # 1ère étape = MANUELLE (ignorée)
-                if i == 0:
+                if len(etapes) < 3:
                     continue
-                
-                # Dernière étape = MANUELLE (ignorée)
-                if i == len(etapes_morc) - 1:
-                    continue
-                
-                # Étape du milieu = AUTO
-                cochee, created = EtapeCochee.objects.get_or_create(
+
+                premiere = etapes[0]
+                derniere = etapes[-1]
+                intermediaires = etapes[1:-1]
+
+                # La 1ère doit être cochée MANUELLEMENT
+                cochee_premiere = EtapeCochee.objects.filter(
                     dossier=self,
-                    etape=etape
-                )
-                
-                if not cochee.is_done and cochee.date_auto_coche is None:
-                    # Date calculée à partir de la 1ère étape + durées cumulées
-                    jours_cumules = 0
-                    for j in range(1, i):  # On commence à 1 pour ignorer la 1ère étape
-                        jours_cumules += etapes_morc[j].duree_jours
-                    
-                    date_cible = date_reference + datetime.timedelta(days=jours_cumules)
+                    etape=premiere,
+                    is_done=True,
+                    done_by__isnull=False,
+                    date_auto_coche__isnull=True,
+                ).first()
+
+                if not cochee_premiere:
+                    # 1ère pas cochée manuellement → on ne planifie RIEN
+                    # et on nettoie les dates résiduelles
+                    EtapeCochee.objects.filter(
+                        dossier=self,
+                        etape__in=intermediaires + [derniere],
+                        is_done=False,
+                    ).update(date_auto_coche=None)
+                    continue
+
+                date_ref = cochee_premiere.done_at or now
+
+                for etape in intermediaires:
+                    cochee, _ = EtapeCochee.objects.get_or_create(
+                        dossier=self, etape=etape
+                    )
+                    if cochee.is_done:
+                        if cochee.done_at:
+                            date_ref = cochee.done_at
+                        continue
+                    if cochee.date_auto_coche is not None:
+                        date_ref = cochee.date_auto_coche
+                        continue
+                    date_cible = date_ref + datetime.timedelta(
+                        days=etape.duree_jours or 0
+                    )
                     cochee.date_auto_coche = date_cible
-                    cochee.save()
+                    cochee.save(update_fields=['date_auto_coche'])
+                    date_ref = date_cible
+
+                # Dernière : jamais planifiée
+                EtapeCochee.objects.filter(
+                    dossier=self, etape=derniere, is_done=False
+                ).update(date_auto_coche=None)
 
     def planifier_cochages_automatiques(self):
         """
-        Ancienne méthode de planification (conservée pour compatibilité)
-        Planifie et exécute les coches automatiques pour les étapes.
-        """
-        now = timezone.now()
-        etapes_tech = list(EtapeGlobale.objects.filter(type='technique').order_by('order'))
-        etapes_morc = list(EtapeGlobale.objects.filter(type='morcellement').order_by('order'))
-
-        # ── TECHNIQUE ──
-        date_reference = self.created_at
-        for i, etape in enumerate(etapes_tech):
-            # 1ère étape = MANUELLE (ignorée)
-            if i == 0:
-                continue
-            
-            # Dernière étape = MANUELLE (ignorée)
-            if i == len(etapes_tech) - 1:
-                continue
-
-            date_cible = date_reference + datetime.timedelta(days=etape.duree_jours)
-            cochee, _ = EtapeCochee.objects.get_or_create(dossier=self, etape=etape)
-
-            if now >= date_cible and not cochee.is_done:
-                cochee.is_done = True
-                cochee.done_at = date_cible
-                cochee.date_auto_coche = date_cible
-                cochee.done_by = None
-                cochee.save()
-                DossierHistorique.objects.get_or_create(
-                    dossier=self,
-                    message=f"Étape '{etape.name}' cochée automatiquement"
-                )
-
-            if cochee.is_done:
-                date_reference = cochee.done_at or date_cible
-            else:
-                break
-
-        # ── MORCELLEMENT ──
-        if not self.is_technique_complete():
-            return
-
-        if not etapes_morc:
-            return
-
-        premiere_morc = etapes_morc[0]
-        cochee_premiere = EtapeCochee.objects.filter(
-            dossier=self,
-            etape=premiere_morc,
-            is_done=True,
-            done_by__isnull=False
-        ).first()
-
-        if not cochee_premiere:
-            return
-
-        date_reference = cochee_premiere.done_at or now
-
-        for i, etape in enumerate(etapes_morc):
-            if i == 0:
-                continue
-            if i == len(etapes_morc) - 1:
-                continue
-
-            date_cible = date_reference + datetime.timedelta(days=etape.duree_jours)
-            cochee, _ = EtapeCochee.objects.get_or_create(dossier=self, etape=etape)
-
-            if now >= date_cible and not cochee.is_done:
-                cochee.is_done = True
-                cochee.done_at = date_cible
-                cochee.date_auto_coche = date_cible
-                cochee.done_by = None
-                cochee.save()
-                DossierHistorique.objects.get_or_create(
-                    dossier=self,
-                    message=f"Étape '{etape.name}' cochée automatiquement"
-                )
-
-            if cochee.is_done:
-                date_reference = cochee.done_at or date_cible
-            else:
-                break
-
-    def appliquer_cochages_automatiques(self, *args, **kwargs):
-        """
-        Applique les coches automatiques pour les étapes du milieu.
-        Ne coche que les étapes qui ont une date_auto_coche dans le passé.
-        """
-        now = timezone.now()
-        
-        # Récupérer toutes les étapes planifiées et non encore cochées
-        cochees_a_activer = self.etapes_cochees.filter(
-            date_auto_coche__isnull=False,
-            date_auto_coche__lte=now,
-            is_done=False
-        ).select_related('etape')
-        
-        for cochee in cochees_a_activer:
-            # Vérifier que c'est une étape du milieu (auto)
-            if self.est_etape_manuelle(cochee.etape):
-                continue  # On saute les étapes manuelles
-            
-            # Pour le morcellement, vérifier que technique est complète
-            if cochee.etape.type == 'morcellement':
-                if not self.is_technique_complete():
-                    continue
-                
-                # Vérifier que la 1ère étape morcellement est cochée manuellement
-                etapes_morc = list(EtapeGlobale.objects.filter(type='morcellement').order_by('order'))
-                if etapes_morc:
-                    premiere_morc = etapes_morc[0]
-                    cochee_premiere = EtapeCochee.objects.filter(
-                        dossier=self,
-                        etape=premiere_morc,
-                        is_done=True,
-                        done_by__isnull=False
-                    ).first()
-                    if not cochee_premiere:
-                        continue
-            
-            # Coche automatiquement
-            cochee.is_done = True
-            cochee.done_at = cochee.date_auto_coche
-            cochee.save()
-            
-            DossierHistorique.objects.create(
-                dossier=self,
-                message=f"Étape '{cochee.etape.name}' cochée automatiquement"
-            )
-
-    def verifier_et_replanifier(self):
-        """
-        Vérifie si toutes les étapes ont une date_auto_coche et planifie les manquantes.
-        À appeler manuellement si nécessaire.
+        Alias de compatibilité.
+        À la création : ne fait rien (1ère pas encore cochée manuellement).
         """
         self.planifier_etapes_manquantes()
+        self.appliquer_cochages_automatiques()
 
+    def appliquer_cochages_automatiques(self):
+        """
+        Coche les intermédiaires dont la date_auto_coche est échue.
+        Respecte l'ordre : on s'arrête à la 1ère non échue.
+        Ne touche JAMAIS la 1ère ni la dernière (manuelles).
+        Ne fait rien pour le morcellement tant que le technique < 100%.
+        """
+        now = timezone.now()
+
+        for type_ in ('technique', 'morcellement'):
+            if type_ == 'morcellement' and not self.is_technique_complete():
+                continue
+
+            etapes = list(
+                EtapeGlobale.objects.filter(type=type_).order_by('order', 'pk')
+            )
+            if len(etapes) < 3:
+                continue
+
+            premiere = etapes[0]
+            intermediaires = etapes[1:-1]
+
+            # La 1ère doit être cochée manuellement
+            cochee_premiere = EtapeCochee.objects.filter(
+                dossier=self,
+                etape=premiere,
+                is_done=True,
+                done_by__isnull=False,
+            ).first()
+            if not cochee_premiere:
+                continue
+
+            for etape in intermediaires:
+                cochee, _ = EtapeCochee.objects.get_or_create(
+                    dossier=self, etape=etape
+                )
+                if cochee.is_done:
+                    continue
+                if not cochee.date_auto_coche or cochee.date_auto_coche > now:
+                    break  # pas encore échue → on arrête (respect de l'ordre)
+
+                cochee.is_done = True
+                cochee.done_at = cochee.date_auto_coche
+                cochee.done_by = None
+                cochee.save(update_fields=['is_done', 'done_at', 'done_by'])
+                DossierHistorique.objects.create(
+                    dossier=self,
+                    message=f"Étape '{etape.name}' cochée automatiquement",
+                )
+    def verifier_et_replanifier(self):
+        self.planifier_etapes_manquantes()
+        self.appliquer_cochages_automatiques()
     # =============== FIN DES MÉTHODES DE GESTION DES ÉTAPES ===============
 
     def get_progression_technique(self):
@@ -427,27 +309,64 @@ class Dossier(models.Model):
 
     def get_etapes_technique(self):
         result = []
-        for eg in EtapeGlobale.objects.filter(type='technique'):
+        etapes = list(
+            EtapeGlobale.objects.filter(type='technique').order_by('order', 'pk')
+        )
+        if not etapes:
+            return result
+
+        premiere = etapes[0]
+        premiere_done = self.etapes_cochees.filter(
+            etape=premiere, is_done=True
+        ).exists()
+
+        for idx, eg in enumerate(etapes):
             cochee = self.etapes_cochees.filter(etape=eg).first()
+            is_done = cochee.is_done if cochee else False
+            is_auto_date = (cochee.date_auto_coche is not None) if cochee else False
+            is_premiere = (idx == 0)
+            is_derniere = (idx == len(etapes) - 1)
             result.append({
-                'etape': eg, 
-                'is_done': cochee.is_done if cochee else False, 
-                'is_auto': cochee.date_auto_coche is not None if cochee else False
+                'etape': eg,
+                'is_done': is_done,
+                'is_auto': is_auto_date,
+                'is_manuelle': is_premiere or is_derniere,
+                'is_premiere': is_premiere,
+                'is_derniere': is_derniere,
+                'premiere_done': premiere_done,
             })
         return result
 
     def get_etapes_morcellement(self):
         result = []
-        for eg in EtapeGlobale.objects.filter(type='morcellement').order_by('order'):
+        etapes = list(
+            EtapeGlobale.objects.filter(type='morcellement').order_by('order', 'pk')
+        )
+        if not etapes:
+            return result
+
+        premiere = etapes[0]
+        premiere_done = self.etapes_cochees.filter(
+            etape=premiere, is_done=True
+        ).exists()
+
+        for idx, eg in enumerate(etapes):
             cochee = self.etapes_cochees.filter(etape=eg).first()
             is_done = cochee.is_done if cochee else False
+            is_auto_date = (cochee.date_auto_coche is not None) if cochee else False
+            is_premiere = (idx == 0)
+            is_derniere = (idx == len(etapes) - 1)
             result.append({
-                'etape': eg, 
-                'is_done': is_done, 
-                'is_auto': cochee.date_auto_coche is not None if cochee else False
+                'etape': eg,
+                'is_done': is_done,
+                'is_auto': is_auto_date,
+                'is_manuelle': is_premiere or is_derniere,
+                'is_premiere': is_premiere,
+                'is_derniere': is_derniere,
+                'premiere_done': premiere_done,
             })
         return result
-    
+        
     def get_all_clients(self):
         """Retourne tous les users ayant accès à ce dossier."""
         return [a.user for a in self.acces.select_related('user').all()]

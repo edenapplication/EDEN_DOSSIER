@@ -547,7 +547,7 @@ def admin_clients_import(request):
                 DossierAcces.objects.get_or_create(dossier=d, user=user, defaults={'est_proprietaire': True})
                 for sup_user in sup_users:
                     DossierAcces.objects.get_or_create(dossier=d, user=sup_user, defaults={'est_proprietaire': False})
-                d.planifier_cochages_automatiques()
+                
                 DossierHistorique.objects.create(dossier=d, message="Dossier créé par import Excel")
                 created_dossiers += 1
             except Exception as e:
@@ -665,6 +665,8 @@ def admin_etape_globale_create(request):
             duree_jours=duree,
         )
         messages.success(request, "Étape créée.")
+        for d in Dossier.objects.all().iterator():
+            d.verifier_et_replanifier()
         return redirect('admin_etapes_globales')
     return render(request, 'adminpanel/etapes/form.html', {'action': 'Créer'})
 
@@ -688,6 +690,8 @@ def admin_etape_globale_edit(request, pk):
         etape.duree_jours = duree
         etape.save()
         messages.success(request, "Étape modifiée.")
+        for d in Dossier.objects.all().iterator():
+            d.verifier_et_replanifier()
         return redirect('admin_etapes_globales')
     return render(request, 'adminpanel/etapes/form.html', {'etape': etape, 'action': 'Modifier'})
 
@@ -698,6 +702,8 @@ def admin_etape_globale_delete(request, pk):
     if request.method == 'POST':
         etape.delete()
         messages.success(request, "Étape supprimée.")
+        for d in Dossier.objects.all().iterator():
+            d.verifier_et_replanifier()
     return redirect('admin_etapes_globales')
 
 
@@ -796,7 +802,7 @@ def admin_dossier_create(request):
                 DossierAcces.objects.get_or_create(dossier=d, user=u, defaults={'est_proprietaire': False})
             except User.DoesNotExist:
                 pass
-        d.planifier_cochages_automatiques()
+        
         DossierHistorique.objects.create(dossier=d, message="Dossier créé — cochage automatique planifié", created_by=request.user)
         messages.success(request, f"Dossier {d.reference} créé.")
         return redirect('admin_dossier_detail', pk=d.pk)
@@ -811,7 +817,7 @@ def admin_dossier_create(request):
 def admin_dossier_detail(request, pk):
     from apps.dossiers.models import DossierAcces
     dossier = get_object_or_404(Dossier, pk=pk)
-    dossier.appliquer_cochages_automatiques(exclude_first_morc=True)
+    dossier.appliquer_cochages_automatiques()
     etapes_tech = dossier.get_etapes_technique()
     etapes_morc = dossier.get_etapes_morcellement()
     historique = dossier.historique.all()[:30]
@@ -821,8 +827,8 @@ def admin_dossier_detail(request, pk):
     total_morc = dossier.get_total_morcellement()
     pct_tech_bar = round(prog_tech / total_tech * 100) if total_tech > 0 else 0
     pct_morc_bar = round(prog_morc / total_morc * 100) if total_morc > 0 else 0
-    etapes_tech_list = list(EtapeGlobale.objects.filter(type='technique'))
-    etapes_morc_list = list(EtapeGlobale.objects.filter(type='morcellement'))
+    etapes_tech_list = list(EtapeGlobale.objects.filter(type='technique').order_by('order', 'pk'))
+    etapes_morc_list = list(EtapeGlobale.objects.filter(type='morcellement').order_by('order', 'pk'))
     acces_list = dossier.acces.select_related('user').all()
     clients_disponibles = User.objects.filter(role='client', is_active=True).exclude(
         pk__in=[a.user_id for a in acces_list]
@@ -900,39 +906,44 @@ def admin_etape_toggle(request, dossier_pk, etape_pk):
     dossier = get_object_or_404(Dossier, pk=dossier_pk)
     etape = get_object_or_404(EtapeGlobale, pk=etape_pk)
 
-    # Vérification morcellement
     if etape.type == 'morcellement' and not dossier.is_technique_complete():
-        return JsonResponse({'status': 'error', 'message': 'Le technique doit être à 100% avant de modifier le morcellement.'}, status=403)
+        return JsonResponse(
+            {'status': 'error',
+             'message': 'Le technique doit être à 100% avant de modifier le morcellement.'},
+            status=403,
+        )
 
     cochee, _ = EtapeCochee.objects.get_or_create(dossier=dossier, etape=etape)
-
-    # ✅ Autorisation explicite du décochage même pour les étapes auto
     cochee.is_done = not cochee.is_done
 
     if cochee.is_done:
         cochee.done_at = timezone.now()
         cochee.done_by = request.user
-        # On peut garder la trace auto ou la supprimer (recommandé pour flexibilité)
-        # cochee.date_auto_coche = None  # Option : supprimer le statut auto
+        cochee.date_auto_coche = None
     else:
         cochee.done_at = None
         cochee.done_by = None
-        cochee.date_auto_coche = None  # Important : on enlève le marquage auto
-
+        cochee.date_auto_coche = None
     cochee.save()
+
+    # ⚡ Replanification + application en cascade
+    dossier.planifier_etapes_manquantes()
+    dossier.appliquer_cochages_automatiques()
 
     action = "validée manuellement" if cochee.is_done else "décochée manuellement"
     DossierHistorique.objects.create(
         dossier=dossier,
         message=f"Étape '{etape.name}' {action}",
-        created_by=request.user
+        created_by=request.user,
     )
 
-    # Données pour le frontend
-    prog = dossier.get_progression_technique() if etape.type == 'technique' else dossier.get_progression_morcellement()
-    total = dossier.get_total_technique() if etape.type == 'technique' else dossier.get_total_morcellement()
+    prog = (dossier.get_progression_technique() if etape.type == 'technique'
+            else dossier.get_progression_morcellement())
+    total = (dossier.get_total_technique() if etape.type == 'technique'
+             else dossier.get_total_morcellement())
     pct_bar = round(prog / total * 100) if total > 0 else 0
-    current = dossier.get_current_etape_technique() if etape.type == 'technique' else dossier.get_current_etape_morcellement()
+    current = (dossier.get_current_etape_technique() if etape.type == 'technique'
+               else dossier.get_current_etape_morcellement())
 
     return JsonResponse({
         'status': 'ok',
