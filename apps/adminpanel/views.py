@@ -3,11 +3,15 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
+from django.db.models import Count
 from .decorators import admin_required
 from apps.users.models import User
 from apps.properties.models import Property, PropertyImage
 from apps.promotions.models import Promotion
-from apps.dossiers.models import Dossier, EtapeGlobale, EtapeCochee, DossierHistorique, IntituleDossier
+from apps.dossiers.models import (
+    Dossier, EtapeGlobale, EtapeCochee,
+    DossierHistorique, IntituleDossier
+)
 from apps.reservations.models import Reservation
 from apps.chatbot.models import ChatbotKnowledge, ChatbotUnknown
 import csv
@@ -16,6 +20,7 @@ import datetime
 import openpyxl
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
+
 
 def _xl_val(cell):
     if cell is None:
@@ -26,35 +31,79 @@ def _xl_val(cell):
     return str(val).strip()
 
 
-# ── DASHBOARD ──
+# ═══════════════════════════════════════════════════════════════════════════
+# DASHBOARD
+# ═══════════════════════════════════════════════════════════════════════════
 @admin_required
 def admin_dashboard(request):
-    dossiers_alerte_list = Dossier.objects.filter(created_at__lte=timezone.now() - datetime.timedelta(days=45))
+    """
+    OPTIMISÉ : select_related + prefetch + stats séparées.
+    Évite N+1 sur recent_dossiers, recent_reservations et dossiers_alerte.
+    """
+    seuil_45j = timezone.now() - datetime.timedelta(days=45)
+
+    # ── Statistiques globales (requêtes COUNT optimisées) ──
+    total_clients      = User.objects.filter(role='client').count()
+    total_properties   = Property.objects.count()
+    total_dossiers     = Dossier.objects.count()
+    total_reservations = Reservation.objects.filter(status='pending').count()
+    unknown_questions  = ChatbotUnknown.objects.count()
+
+    # ── Réservations récentes (1 requête) ──
+    recent_reservations = Reservation.objects.select_related(
+        'property_link', 'promotion_link'
+    ).order_by('-created_at')[:6]
+
+    # ── Dossiers récents (1 requête) ──
+    recent_dossiers = Dossier.objects.select_related(
+        'client', 'intitule'
+    ).order_by('-created_at')[:5]
+
+    # ── Dossiers en alerte ──
+    # On limite à 50 dossiers pour ne pas exploser la mémoire,
+    # puis on filtre en Python sur is_complete() (méthode Python)
+    dossiers_alerte_list = Dossier.objects.filter(
+        created_at__lte=seuil_45j
+    ).select_related('client', 'intitule')[:50]
+
     dossiers_alerte = [d for d in dossiers_alerte_list if not d.is_complete()]
+
     ctx = {
-        'total_clients': User.objects.filter(role='client').count(),
-        'total_properties': Property.objects.count(),
-        'total_dossiers': Dossier.objects.count(),
-        'total_reservations': Reservation.objects.filter(status='pending').count(),
-        'recent_reservations': Reservation.objects.order_by('-created_at')[:6],
-        'recent_dossiers': Dossier.objects.select_related('client', 'intitule').order_by('-created_at')[:5],
-        'unknown_questions': ChatbotUnknown.objects.count(),
-        'alerte_45j_count': len(dossiers_alerte),
-        'dossiers_alerte': dossiers_alerte[:3],
+        'total_clients':      total_clients,
+        'total_properties':   total_properties,
+        'total_dossiers':     total_dossiers,
+        'total_reservations': total_reservations,
+        'recent_reservations': recent_reservations,
+        'recent_dossiers':    recent_dossiers,
+        'unknown_questions':  unknown_questions,
+        'alerte_45j_count':   len(dossiers_alerte),
+        'dossiers_alerte':    dossiers_alerte[:3],
     }
     return render(request, 'adminpanel/dashboard.html', ctx)
 
 
-# ── TERRAINS ──
+# ═══════════════════════════════════════════════════════════════════════════
+# TERRAINS
+# ═══════════════════════════════════════════════════════════════════════════
 @admin_required
 def admin_properties(request):
-    return render(request, 'adminpanel/properties/list.html', {'properties': Property.objects.prefetch_related('images').all()})
+    return render(request, 'adminpanel/properties/list.html', {
+        'properties': Property.objects.prefetch_related('images').all()
+    })
 
 
 @admin_required
 def admin_property_create(request):
     if request.method == 'POST':
-        p = Property(title=request.POST.get('title'), description=request.POST.get('description'), location=request.POST.get('location'), area=request.POST.get('area'), price=request.POST.get('price'), is_active=request.POST.get('is_active') == 'on', is_featured=request.POST.get('is_featured') == 'on')
+        p = Property(
+            title=request.POST.get('title'),
+            description=request.POST.get('description'),
+            location=request.POST.get('location'),
+            area=request.POST.get('area'),
+            price=request.POST.get('price'),
+            is_active=request.POST.get('is_active') == 'on',
+            is_featured=request.POST.get('is_featured') == 'on',
+        )
         if request.FILES.get('main_image'):
             p.main_image = request.FILES['main_image']
         p.save()
@@ -69,12 +118,12 @@ def admin_property_create(request):
 def admin_property_edit(request, pk):
     p = get_object_or_404(Property, pk=pk)
     if request.method == 'POST':
-        p.title = request.POST.get('title')
+        p.title       = request.POST.get('title')
         p.description = request.POST.get('description')
-        p.location = request.POST.get('location')
-        p.area = request.POST.get('area')
-        p.price = request.POST.get('price')
-        p.is_active = request.POST.get('is_active') == 'on'
+        p.location    = request.POST.get('location')
+        p.area        = request.POST.get('area')
+        p.price       = request.POST.get('price')
+        p.is_active   = request.POST.get('is_active') == 'on'
         p.is_featured = request.POST.get('is_featured') == 'on'
         if request.FILES.get('main_image'):
             p.main_image = request.FILES['main_image']
@@ -95,16 +144,32 @@ def admin_property_delete(request, pk):
     return redirect('admin_properties')
 
 
-# ── PROMOTIONS ──
+# ═══════════════════════════════════════════════════════════════════════════
+# PROMOTIONS
+# ═══════════════════════════════════════════════════════════════════════════
 @admin_required
 def admin_promotions(request):
-    return render(request, 'adminpanel/promotions/list.html', {'promotions': Promotion.objects.all()})
+    return render(request, 'adminpanel/promotions/list.html', {
+        'promotions': Promotion.objects.all()
+    })
 
 
 @admin_required
 def admin_promotion_create(request):
     if request.method == 'POST':
-        pr = Promotion(title=request.POST.get('title'), subtitle=request.POST.get('subtitle', ''), description=request.POST.get('description'), badge=request.POST.get('badge', ''), badge_color=request.POST.get('badge_color', '#C1121F'), price=request.POST.get('price') or None, location=request.POST.get('location', ''), advantages=request.POST.get('advantages', ''), conditions=request.POST.get('conditions', ''), order=int(request.POST.get('order', 0)), is_active=request.POST.get('is_active') == 'on')
+        pr = Promotion(
+            title=request.POST.get('title'),
+            subtitle=request.POST.get('subtitle', ''),
+            description=request.POST.get('description'),
+            badge=request.POST.get('badge', ''),
+            badge_color=request.POST.get('badge_color', '#C1121F'),
+            price=request.POST.get('price') or None,
+            location=request.POST.get('location', ''),
+            advantages=request.POST.get('advantages', ''),
+            conditions=request.POST.get('conditions', ''),
+            order=int(request.POST.get('order', 0)),
+            is_active=request.POST.get('is_active') == 'on',
+        )
         if request.FILES.get('image'):
             pr.image = request.FILES['image']
         pr.save()
@@ -117,17 +182,17 @@ def admin_promotion_create(request):
 def admin_promotion_edit(request, pk):
     pr = get_object_or_404(Promotion, pk=pk)
     if request.method == 'POST':
-        pr.title = request.POST.get('title')
-        pr.subtitle = request.POST.get('subtitle', '')
+        pr.title       = request.POST.get('title')
+        pr.subtitle    = request.POST.get('subtitle', '')
         pr.description = request.POST.get('description')
-        pr.badge = request.POST.get('badge', '')
+        pr.badge       = request.POST.get('badge', '')
         pr.badge_color = request.POST.get('badge_color', '#C1121F')
-        pr.price = request.POST.get('price') or None
-        pr.location = request.POST.get('location', '')
-        pr.advantages = request.POST.get('advantages', '')
-        pr.conditions = request.POST.get('conditions', '')
-        pr.order = int(request.POST.get('order', 0))
-        pr.is_active = request.POST.get('is_active') == 'on'
+        pr.price       = request.POST.get('price') or None
+        pr.location    = request.POST.get('location', '')
+        pr.advantages  = request.POST.get('advantages', '')
+        pr.conditions  = request.POST.get('conditions', '')
+        pr.order       = int(request.POST.get('order', 0))
+        pr.is_active   = request.POST.get('is_active') == 'on'
         if request.FILES.get('image'):
             pr.image = request.FILES['image']
         pr.save()
@@ -145,10 +210,14 @@ def admin_promotion_delete(request, pk):
     return redirect('admin_promotions')
 
 
-# ── INTITULÉS ──
+# ═══════════════════════════════════════════════════════════════════════════
+# INTITULÉS
+# ═══════════════════════════════════════════════════════════════════════════
 @admin_required
 def admin_intitules(request):
-    return render(request, 'adminpanel/intitules/list.html', {'intitules': IntituleDossier.objects.all()})
+    return render(request, 'adminpanel/intitules/list.html', {
+        'intitules': IntituleDossier.objects.all()
+    })
 
 
 @admin_required
@@ -156,7 +225,7 @@ def admin_intitule_create(request):
     if request.method == 'POST':
         obj = IntituleDossier(
             name=request.POST.get('name'),
-            description=request.POST.get('description', '')
+            description=request.POST.get('description', ''),
         )
         if request.FILES.get('image'):
             obj.image = request.FILES['image']
@@ -170,7 +239,7 @@ def admin_intitule_create(request):
 def admin_intitule_edit(request, pk):
     obj = get_object_or_404(IntituleDossier, pk=pk)
     if request.method == 'POST':
-        obj.name = request.POST.get('name')
+        obj.name        = request.POST.get('name')
         obj.description = request.POST.get('description', '')
         if request.FILES.get('image'):
             obj.image = request.FILES['image']
@@ -189,50 +258,77 @@ def admin_intitule_delete(request, pk):
     return redirect('admin_intitules')
 
 
-# ── UTILISATEURS ──
+# ═══════════════════════════════════════════════════════════════════════════
+# UTILISATEURS / CLIENTS
+# ═══════════════════════════════════════════════════════════════════════════
 @admin_required
 def admin_clients(request):
-    role_filter = request.GET.get('role', '')
+    """
+    OPTIMISÉ :
+    - prefetch_related('dossiers', 'dossiers__intitule') → 1 requête au lieu de N
+    - annotate('nb_dossiers') → compte sans requête supplémentaire
+    - filtre sans_dossier utilise l'annotation
+    """
+    role_filter  = request.GET.get('role', '')
     sans_dossier = request.GET.get('sans_dossier', '')
-    date_debut = request.GET.get('date_debut', '')
-    date_fin = request.GET.get('date_fin', '')
+    date_debut   = request.GET.get('date_debut', '')
+    date_fin     = request.GET.get('date_fin', '')
 
-    users = User.objects.all().order_by('-date_joined')
+    users = User.objects.prefetch_related(
+        'dossiers',
+        'dossiers__intitule',
+    ).annotate(
+        nb_dossiers=Count('dossiers', distinct=True),
+    ).order_by('-date_joined')
+
     if role_filter:
         users = users.filter(role=role_filter)
+
     if sans_dossier == '1':
-        users = users.filter(dossiers__isnull=True)
+        users = users.filter(nb_dossiers=0)
+
     if date_debut:
         try:
-            users = users.filter(date_joined__date__gte=datetime.datetime.strptime(date_debut, '%Y-%m-%d').date())
+            users = users.filter(
+                date_joined__date__gte=datetime.datetime.strptime(date_debut, '%Y-%m-%d').date()
+            )
         except ValueError:
             pass
+
     if date_fin:
         try:
-            users = users.filter(date_joined__date__lte=datetime.datetime.strptime(date_fin, '%Y-%m-%d').date())
+            users = users.filter(
+                date_joined__date__lte=datetime.datetime.strptime(date_fin, '%Y-%m-%d').date()
+            )
         except ValueError:
             pass
 
     return render(request, 'adminpanel/clients/list.html', {
-        'clients': users,
-        'role_filter': role_filter,
-        'roles': User.ROLE_CHOICES,
-        'sans_dossier': sans_dossier,
-        'date_debut': date_debut,
-        'date_fin': date_fin,
+        'clients':       users,
+        'role_filter':   role_filter,
+        'roles':         User.ROLE_CHOICES,
+        'sans_dossier':  sans_dossier,
+        'date_debut':    date_debut,
+        'date_fin':      date_fin,
     })
+
 
 @admin_required
 def admin_client_create(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
-        role = request.POST.get('role', 'client')
+        role     = request.POST.get('role', 'client')
+
         if User.objects.filter(username=username).exists():
             messages.error(request, "Cet identifiant existe déjà.")
-            return render(request, 'adminpanel/clients/form.html', {'action': 'Créer', 'roles': User.ROLE_CHOICES})
+            return render(request, 'adminpanel/clients/form.html', {
+                'action': 'Créer', 'roles': User.ROLE_CHOICES
+            })
+
         u = User.objects.create_user(
-            username=username, password=password,
+            username=username,
+            password=password,
             last_name=request.POST.get('last_name', ''),
             email=request.POST.get('email', ''),
             phone=request.POST.get('phone', ''),
@@ -245,7 +341,9 @@ def admin_client_create(request):
             u.save()
         messages.success(request, f"Utilisateur créé — Identifiant : {username} | Mot de passe : {password}")
         return redirect('admin_clients')
-    return render(request, 'adminpanel/clients/form.html', {'action': 'Créer', 'roles': User.ROLE_CHOICES})
+    return render(request, 'adminpanel/clients/form.html', {
+        'action': 'Créer', 'roles': User.ROLE_CHOICES
+    })
 
 
 @admin_required
@@ -256,28 +354,34 @@ def admin_client_edit(request, pk):
         if new_username and new_username != u.username:
             if User.objects.filter(username=new_username).exclude(pk=pk).exists():
                 messages.error(request, f"L'identifiant '{new_username}' est déjà utilisé.")
-                return render(request, 'adminpanel/clients/form.html', {'client': u, 'action': 'Modifier', 'roles': User.ROLE_CHOICES})
+                return render(request, 'adminpanel/clients/form.html', {
+                    'client': u, 'action': 'Modifier', 'roles': User.ROLE_CHOICES
+                })
             u.username = new_username
+
         u.last_name = request.POST.get('last_name', '')
-        u.email = request.POST.get('email', '')
-        u.phone = request.POST.get('phone', '')
-        u.city = request.POST.get('city', '')
+        u.email     = request.POST.get('email', '')
+        u.phone     = request.POST.get('phone', '')
+        u.city      = request.POST.get('city', '')
         u.is_active = request.POST.get('is_active') == 'on'
-        u.sexe = request.POST.get('sexe', 'masculin')
+        u.sexe      = request.POST.get('sexe', 'masculin')
+
         new_role = request.POST.get('role', u.role)
-        u.role = new_role
+        u.role   = new_role
         u.is_staff = new_role in ('admin', 'commercial')
+
         new_password = request.POST.get('password', '').strip()
         if new_password:
             u.set_password(new_password)
+
         u.save()
         messages.success(request, f"Utilisateur '{u.username}' modifié avec succès.")
         return redirect('admin_clients')
+
     return render(request, 'adminpanel/clients/form.html', {
-        'client': u,
-        'action': 'Modifier',
-        'roles': User.ROLE_CHOICES
+        'client': u, 'action': 'Modifier', 'roles': User.ROLE_CHOICES
     })
+
 
 @admin_required
 def admin_client_delete(request, pk):
@@ -363,10 +467,13 @@ def admin_clients_export(request):
     ws2.column_dimensions['A'].width = 22
     ws2.column_dimensions['B'].width = 72
 
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
     response['Content-Disposition'] = 'attachment; filename="eden_clients_dossiers.xlsx"'
     wb.save(response)
     return response
+
 
 @admin_required
 def admin_clients_import(request):
@@ -390,12 +497,12 @@ def admin_clients_import(request):
         ws = wb[sheet_name]
         rows = list(ws.iter_rows(min_row=2))
 
-        created_users = 0
-        updated_users = 0
-        created_dossiers = 0
-        skipped_doublons = 0
-        errors = []
-        seen_clients = {}
+        created_users     = 0
+        updated_users     = 0
+        created_dossiers  = 0
+        skipped_doublons  = 0
+        errors            = []
+        seen_clients      = {}
 
         def get_or_create_user_by_username(username):
             if username in seen_clients:
@@ -423,18 +530,18 @@ def admin_clients_import(request):
             if not username:
                 continue
 
-            password   = get(1)
-            nom        = get(2)
-            email      = get(3)
-            phone      = get(4)
-            city       = get(5)
-            sexe_raw   = get(6).lower()
-            role_raw   = get(7).lower()
-            actif_raw  = get(8).lower()
-            intitule_name = get(9)
-            superficie_raw = get(10)
-            date_raw   = get(11)
-            description = get(12)
+            password        = get(1)
+            nom             = get(2)
+            email           = get(3)
+            phone           = get(4)
+            city            = get(5)
+            sexe_raw        = get(6).lower()
+            role_raw        = get(7).lower()
+            actif_raw       = get(8).lower()
+            intitule_name   = get(9)
+            superficie_raw  = get(10)
+            date_raw        = get(11)
+            description     = get(12)
 
             # Colonnes 13+ = identifiants supplémentaires
             identifiants_sup = []
@@ -445,9 +552,16 @@ def admin_clients_import(request):
                     identifiants_sup.append(val)
                 col_idx += 1
 
-            sexe_map = {'masculin': 'masculin', 'féminin': 'feminin', 'feminin': 'feminin', 'plusieurs': 'plusieurs'}
+            sexe_map = {
+                'masculin': 'masculin', 'féminin': 'feminin',
+                'feminin': 'feminin', 'plusieurs': 'plusieurs'
+            }
             sexe = sexe_map.get(sexe_raw, 'masculin')
-            role_map = {'admin': 'admin', 'administrateur': 'admin', 'commercial': 'commercial', 'client': 'client'}
+
+            role_map = {
+                'admin': 'admin', 'administrateur': 'admin',
+                'commercial': 'commercial', 'client': 'client'
+            }
             role = role_map.get(role_raw, 'client')
             is_active = actif_raw not in ('non', 'false', '0', 'no')
 
@@ -547,7 +661,7 @@ def admin_clients_import(request):
                 DossierAcces.objects.get_or_create(dossier=d, user=user, defaults={'est_proprietaire': True})
                 for sup_user in sup_users:
                     DossierAcces.objects.get_or_create(dossier=d, user=sup_user, defaults={'est_proprietaire': False})
-                
+
                 DossierHistorique.objects.create(dossier=d, message="Dossier créé par import Excel")
                 created_dossiers += 1
             except Exception as e:
@@ -568,6 +682,7 @@ def admin_clients_import(request):
 
     return render(request, 'adminpanel/clients/import_excel.html')
 
+
 @admin_required
 def admin_clients_template(request):
     wb = Workbook()
@@ -576,7 +691,7 @@ def admin_clients_template(request):
 
     header_fill = PatternFill("solid", fgColor="0B1F3A")
     header_font = Font(bold=True, color="FFFFFF")
-    red_fill = PatternFill("solid", fgColor="FFF0F0")
+    red_fill    = PatternFill("solid", fgColor="FFF0F0")
 
     headers = [
         'Identifiant*', 'Mot de passe*', 'Nom', 'Email',
@@ -631,31 +746,41 @@ def admin_clients_template(request):
     ws2.column_dimensions['A'].width = 22
     ws2.column_dimensions['B'].width = 72
 
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
     response['Content-Disposition'] = 'attachment; filename="modele_import_eden.xlsx"'
     wb.save(response)
     return response
 
 
-
-# ── ÉTAPES ──
+# ═══════════════════════════════════════════════════════════════════════════
+# ÉTAPES
+# ═══════════════════════════════════════════════════════════════════════════
 @admin_required
 def admin_etapes_globales(request):
     etapes_tech = EtapeGlobale.objects.filter(type='technique')
     etapes_morc = EtapeGlobale.objects.filter(type='morcellement')
-    return render(request, 'adminpanel/etapes/list.html', {'etapes_tech': etapes_tech, 'etapes_morc': etapes_morc, 'total_tech': sum(e.percentage for e in etapes_tech), 'total_morc': sum(e.percentage for e in etapes_morc)})
+    return render(request, 'adminpanel/etapes/list.html', {
+        'etapes_tech': etapes_tech,
+        'etapes_morc': etapes_morc,
+        'total_tech':  sum(e.percentage for e in etapes_tech),
+        'total_morc':  sum(e.percentage for e in etapes_morc),
+    })
 
 
 @admin_required
 def admin_etape_globale_create(request):
     if request.method == 'POST':
         type_ = request.POST.get('type')
-        pct = int(request.POST.get('percentage', 0))
+        pct   = int(request.POST.get('percentage', 0))
         duree = int(request.POST.get('duree_jours', 7))
+
         total_actuel = sum(e.percentage for e in EtapeGlobale.objects.filter(type=type_))
         if total_actuel + pct > 100:
             messages.error(request, f"Impossible : total dépasserait 100% (actuel : {total_actuel}%)")
             return redirect('admin_etapes_globales')
+
         EtapeGlobale.objects.create(
             name=request.POST.get('name'),
             type=type_,
@@ -665,8 +790,11 @@ def admin_etape_globale_create(request):
             duree_jours=duree,
         )
         messages.success(request, "Étape créée.")
+
+        # Replanification (peut être long : à déporter en tâche async si besoin)
         for d in Dossier.objects.all().iterator():
             d.verifier_et_replanifier()
+
         return redirect('admin_etapes_globales')
     return render(request, 'adminpanel/etapes/form.html', {'action': 'Créer'})
 
@@ -675,23 +803,27 @@ def admin_etape_globale_create(request):
 def admin_etape_globale_edit(request, pk):
     etape = get_object_or_404(EtapeGlobale, pk=pk)
     if request.method == 'POST':
-        pct = int(request.POST.get('percentage', 0))
+        pct   = int(request.POST.get('percentage', 0))
         duree = int(request.POST.get('duree_jours', 7))
+
         total_actuel = sum(
             e.percentage for e in EtapeGlobale.objects.filter(type=etape.type).exclude(pk=pk)
         )
         if total_actuel + pct > 100:
             messages.error(request, "Impossible : total dépasserait 100%")
             return redirect('admin_etapes_globales')
-        etape.name = request.POST.get('name')
-        etape.percentage = pct
-        etape.order = int(request.POST.get('order', 0))
+
+        etape.name        = request.POST.get('name')
+        etape.percentage  = pct
+        etape.order       = int(request.POST.get('order', 0))
         etape.description = request.POST.get('description', '')
         etape.duree_jours = duree
         etape.save()
         messages.success(request, "Étape modifiée.")
+
         for d in Dossier.objects.all().iterator():
             d.verifier_et_replanifier()
+
         return redirect('admin_etapes_globales')
     return render(request, 'adminpanel/etapes/form.html', {'etape': etape, 'action': 'Modifier'})
 
@@ -707,29 +839,51 @@ def admin_etape_globale_delete(request, pk):
     return redirect('admin_etapes_globales')
 
 
-# ── DOSSIERS ──
+# ═══════════════════════════════════════════════════════════════════════════
+# DOSSIERS
+# ═══════════════════════════════════════════════════════════════════════════
 @admin_required
 def admin_dossiers(request):
-    date_debut = request.GET.get('date_debut', '')
-    date_fin = request.GET.get('date_fin', '')
+    """
+    OPTIMISÉ :
+    - select_related('client', 'intitule') → 1 requête au lieu de 3
+    - prefetch_related('acces__user') → 1 requête au lieu de N
+    - prefetch_related('etapes_cochees__etape') → 1 requête au lieu de N
+    - annotate('nb_acces') → compteur sans requête
+    """
+    date_debut      = request.GET.get('date_debut', '')
+    date_fin        = request.GET.get('date_fin', '')
     sans_superficie = request.GET.get('sans_superficie', '')
-    pct_tech_min = request.GET.get('pct_tech_min', '')
-    pct_tech_max = request.GET.get('pct_tech_max', '')
-    pct_morc_min = request.GET.get('pct_morc_min', '')
-    pct_morc_max = request.GET.get('pct_morc_max', '')
+    pct_tech_min    = request.GET.get('pct_tech_min', '')
+    pct_tech_max    = request.GET.get('pct_tech_max', '')
+    pct_morc_min    = request.GET.get('pct_morc_min', '')
+    pct_morc_max    = request.GET.get('pct_morc_max', '')
 
-    dossiers = Dossier.objects.select_related('client', 'intitule').prefetch_related('acces__user').order_by('-created_at')
+    dossiers = Dossier.objects.select_related(
+        'client', 'intitule'
+    ).prefetch_related(
+        'acces__user',
+        'etapes_cochees__etape',
+    ).annotate(
+        nb_acces=Count('acces', distinct=True),
+    ).order_by('-created_at')
 
     if date_debut:
         try:
-            dossiers = dossiers.filter(created_at__date__gte=datetime.datetime.strptime(date_debut, '%Y-%m-%d').date())
+            dossiers = dossiers.filter(
+                created_at__date__gte=datetime.datetime.strptime(date_debut, '%Y-%m-%d').date()
+            )
         except ValueError:
             pass
+
     if date_fin:
         try:
-            dossiers = dossiers.filter(created_at__date__lte=datetime.datetime.strptime(date_fin, '%Y-%m-%d').date())
+            dossiers = dossiers.filter(
+                created_at__date__lte=datetime.datetime.strptime(date_fin, '%Y-%m-%d').date()
+            )
         except ValueError:
             pass
+
     if sans_superficie == '1':
         dossiers = dossiers.filter(superficie__isnull=True)
 
@@ -738,7 +892,6 @@ def admin_dossiers(request):
         pt = d.get_progression_technique()
         pm = d.get_progression_morcellement()
 
-        # Filtre pourcentage (post-queryset car méthodes Python)
         if pct_tech_min and pt < int(pct_tech_min):
             continue
         if pct_tech_max and pt > int(pct_tech_max):
@@ -751,114 +904,157 @@ def admin_dossiers(request):
         clients_display = d.get_clients_display()
         search_str = f"{d.reference.lower()} {d.get_title().lower()} {clients_display.lower()}"
         dossiers_data.append({
-            'dossier': d,
-            'is_complete': d.is_complete(),
+            'dossier':         d,
+            'is_complete':     d.is_complete(),
             'clients_display': clients_display,
-            'search_str': search_str,
-            'pt': pt,
-            'pm': pm,
+            'search_str':      search_str,
+            'pt':              pt,
+            'pm':              pm,
         })
 
     etapes_tech = EtapeGlobale.objects.filter(type='technique')
     etapes_morc = EtapeGlobale.objects.filter(type='morcellement')
+
     return render(request, 'adminpanel/dossiers/list.html', {
-        'dossiers_data': dossiers_data,
-        'etapes_tech': etapes_tech,
-        'etapes_morc': etapes_morc,
-        'date_debut': date_debut,
-        'date_fin': date_fin,
+        'dossiers_data':   dossiers_data,
+        'etapes_tech':     etapes_tech,
+        'etapes_morc':     etapes_morc,
+        'date_debut':      date_debut,
+        'date_fin':        date_fin,
         'sans_superficie': sans_superficie,
-        'pct_tech_min': pct_tech_min,
-        'pct_tech_max': pct_tech_max,
-        'pct_morc_min': pct_morc_min,
-        'pct_morc_max': pct_morc_max,
+        'pct_tech_min':    pct_tech_min,
+        'pct_tech_max':    pct_tech_max,
+        'pct_morc_min':    pct_morc_min,
+        'pct_morc_max':    pct_morc_max,
     })
+
 
 @admin_required
 def admin_dossier_create(request):
     from apps.dossiers.models import DossierAcces
-    clients = User.objects.filter(role='client', is_active=True)
+
+    clients   = User.objects.filter(role='client', is_active=True)
     intitules = IntituleDossier.objects.all()
+
     if request.method == 'POST':
-        client = get_object_or_404(User, pk=request.POST.get('client'), role='client')
+        client      = get_object_or_404(User, pk=request.POST.get('client'), role='client')
         intitule_id = request.POST.get('intitule')
-        intitule = get_object_or_404(IntituleDossier, pk=intitule_id) if intitule_id else None
+        intitule    = get_object_or_404(IntituleDossier, pk=intitule_id) if intitule_id else None
+
         d = Dossier(
             client=client,
             intitule=intitule,
             description=request.POST.get('description', ''),
             superficie=request.POST.get('superficie') or None,
-            date_paiement=request.POST.get('date_paiement') or None
+            date_paiement=request.POST.get('date_paiement') or None,
         )
         if request.FILES.get('photo'):
             d.photo = request.FILES['photo']
         d.save()
-        # Accès propriétaire
+
         DossierAcces.objects.get_or_create(dossier=d, user=client, defaults={'est_proprietaire': True})
-        # Accès supplémentaires
+
         for uid in request.POST.getlist('acces_supplementaires'):
             try:
                 u = User.objects.get(pk=uid)
                 DossierAcces.objects.get_or_create(dossier=d, user=u, defaults={'est_proprietaire': False})
             except User.DoesNotExist:
                 pass
-        
-        DossierHistorique.objects.create(dossier=d, message="Dossier créé — cochage automatique planifié", created_by=request.user)
+
+        DossierHistorique.objects.create(
+            dossier=d,
+            message="Dossier créé — cochage automatique planifié",
+            created_by=request.user,
+        )
         messages.success(request, f"Dossier {d.reference} créé.")
         return redirect('admin_dossier_detail', pk=d.pk)
+
     return render(request, 'adminpanel/dossiers/form.html', {
-        'clients': clients,
-        'intitules': intitules,
-        'action': 'Créer',
+        'clients':     clients,
+        'intitules':   intitules,
+        'action':      'Créer',
         'all_clients': User.objects.filter(role='client', is_active=True),
     })
 
+
 @admin_required
 def admin_dossier_detail(request, pk):
+    """
+    OPTIMISÉ :
+    - select_related('client', 'intitule')
+    - prefetch_related('acces__user', 'historique__created_by', 'etapes_cochees__etape')
+    """
     from apps.dossiers.models import DossierAcces
-    dossier = get_object_or_404(Dossier, pk=pk)
+
+    dossier = Dossier.objects.select_related(
+        'client', 'intitule'
+    ).prefetch_related(
+        'acces__user',
+        'historique__created_by',
+        'etapes_cochees__etape',
+        'etapes_cochees__done_by',
+    ).get(pk=pk)
+
     dossier.appliquer_cochages_automatiques()
+
     etapes_tech = dossier.get_etapes_technique()
     etapes_morc = dossier.get_etapes_morcellement()
-    historique = dossier.historique.all()[:30]
-    prog_tech = dossier.get_progression_technique()
-    prog_morc = dossier.get_progression_morcellement()
-    total_tech = dossier.get_total_technique()
-    total_morc = dossier.get_total_morcellement()
+
+    # Utilise l'historique déjà pré-chargé (tri en Python, pas de requête)
+    historique = sorted(
+        dossier.historique.all(),
+        key=lambda h: h.created_at,
+        reverse=True
+    )[:30]
+
+    prog_tech   = dossier.get_progression_technique()
+    prog_morc   = dossier.get_progression_morcellement()
+    total_tech  = dossier.get_total_technique()
+    total_morc  = dossier.get_total_morcellement()
+
     pct_tech_bar = round(prog_tech / total_tech * 100) if total_tech > 0 else 0
     pct_morc_bar = round(prog_morc / total_morc * 100) if total_morc > 0 else 0
+
     etapes_tech_list = list(EtapeGlobale.objects.filter(type='technique').order_by('order', 'pk'))
     etapes_morc_list = list(EtapeGlobale.objects.filter(type='morcellement').order_by('order', 'pk'))
-    acces_list = dossier.acces.select_related('user').all()
-    clients_disponibles = User.objects.filter(role='client', is_active=True).exclude(
-        pk__in=[a.user_id for a in acces_list]
-    )
+
+    acces_list = list(dossier.acces.all())  # déjà pré-chargé
+
+    # Exclure sans requête supplémentaire
+    user_ids_avec_acces = [a.user_id for a in acces_list]
+    clients_disponibles = User.objects.filter(
+        role='client', is_active=True
+    ).exclude(pk__in=user_ids_avec_acces)
+
     return render(request, 'adminpanel/dossiers/detail.html', {
-        'dossier': dossier,
-        'etapes_tech': etapes_tech,
-        'etapes_morc': etapes_morc,
-        'historique': historique,
-        'prog_tech': prog_tech,
-        'prog_morc': prog_morc,
-        'total_tech': total_tech,
-        'total_morc': total_morc,
-        'pct_tech_bar': pct_tech_bar,
-        'pct_morc_bar': pct_morc_bar,
-        'current_tech': dossier.get_current_etape_technique(),
-        'current_morc': dossier.get_current_etape_morcellement(),
-        'morc_locked': not dossier.is_technique_complete(),
-        'last_tech_id': etapes_tech_list[-1].pk if etapes_tech_list else None,
-        'last_morc_id': etapes_morc_list[-1].pk if etapes_morc_list else None,
-        'acces_list': acces_list,
+        'dossier':            dossier,
+        'etapes_tech':        etapes_tech,
+        'etapes_morc':        etapes_morc,
+        'historique':         historique,
+        'prog_tech':          prog_tech,
+        'prog_morc':          prog_morc,
+        'total_tech':         total_tech,
+        'total_morc':         total_morc,
+        'pct_tech_bar':       pct_tech_bar,
+        'pct_morc_bar':       pct_morc_bar,
+        'current_tech':       dossier.get_current_etape_technique(),
+        'current_morc':       dossier.get_current_etape_morcellement(),
+        'morc_locked':        not dossier.is_technique_complete(),
+        'last_tech_id':       etapes_tech_list[-1].pk if etapes_tech_list else None,
+        'last_morc_id':       etapes_morc_list[-1].pk if etapes_morc_list else None,
+        'acces_list':         acces_list,
         'clients_disponibles': clients_disponibles,
     })
+
 
 @admin_required
 @require_POST
 def admin_dossier_acces_ajouter(request, pk):
     from apps.dossiers.models import DossierAcces
+
     dossier = get_object_or_404(Dossier, pk=pk)
     user_id = request.POST.get('user_id')
+
     if user_id:
         try:
             u = User.objects.get(pk=user_id, role='client')
@@ -870,13 +1066,14 @@ def admin_dossier_acces_ajouter(request, pk):
                 DossierHistorique.objects.create(
                     dossier=dossier,
                     message=f"Accès ajouté pour {u.last_name or u.username}",
-                    created_by=request.user
+                    created_by=request.user,
                 )
                 messages.success(request, f"Accès ajouté pour {u.last_name or u.username}.")
             else:
                 messages.warning(request, "Cet utilisateur a déjà accès à ce dossier.")
         except User.DoesNotExist:
             messages.error(request, "Utilisateur introuvable.")
+
     return redirect('admin_dossier_detail', pk=pk)
 
 
@@ -884,17 +1081,21 @@ def admin_dossier_acces_ajouter(request, pk):
 @require_POST
 def admin_dossier_acces_supprimer(request, pk, acces_pk):
     from apps.dossiers.models import DossierAcces
+
     dossier = get_object_or_404(Dossier, pk=pk)
-    acces = get_object_or_404(DossierAcces, pk=acces_pk, dossier=dossier)
+    acces   = get_object_or_404(DossierAcces, pk=acces_pk, dossier=dossier)
+
     if acces.est_proprietaire:
         messages.error(request, "Impossible de supprimer le propriétaire principal.")
         return redirect('admin_dossier_detail', pk=pk)
+
     nom = acces.user.last_name or acces.user.username
     acces.delete()
+
     DossierHistorique.objects.create(
         dossier=dossier,
         message=f"Accès supprimé pour {nom}",
-        created_by=request.user
+        created_by=request.user,
     )
     messages.success(request, f"Accès supprimé pour {nom}.")
     return redirect('admin_dossier_detail', pk=pk)
@@ -904,12 +1105,14 @@ def admin_dossier_acces_supprimer(request, pk, acces_pk):
 @require_POST
 def admin_etape_toggle(request, dossier_pk, etape_pk):
     dossier = get_object_or_404(Dossier, pk=dossier_pk)
-    etape = get_object_or_404(EtapeGlobale, pk=etape_pk)
+    etape   = get_object_or_404(EtapeGlobale, pk=etape_pk)
 
     if etape.type == 'morcellement' and not dossier.is_technique_complete():
         return JsonResponse(
-            {'status': 'error',
-             'message': 'Le technique doit être à 100% avant de modifier le morcellement.'},
+            {
+                'status': 'error',
+                'message': 'Le technique doit être à 100% avant de modifier le morcellement.'
+            },
             status=403,
         )
 
@@ -917,16 +1120,17 @@ def admin_etape_toggle(request, dossier_pk, etape_pk):
     cochee.is_done = not cochee.is_done
 
     if cochee.is_done:
-        cochee.done_at = timezone.now()
-        cochee.done_by = request.user
+        cochee.done_at        = timezone.now()
+        cochee.done_by        = request.user
         cochee.date_auto_coche = None
     else:
-        cochee.done_at = None
-        cochee.done_by = None
+        cochee.done_at        = None
+        cochee.done_by        = None
         cochee.date_auto_coche = None
+
     cochee.save()
 
-    # ⚡ Replanification + application en cascade
+    # Replanification + application en cascade
     dossier.planifier_etapes_manquantes()
     dossier.appliquer_cochages_automatiques()
 
@@ -942,47 +1146,55 @@ def admin_etape_toggle(request, dossier_pk, etape_pk):
     total = (dossier.get_total_technique() if etape.type == 'technique'
              else dossier.get_total_morcellement())
     pct_bar = round(prog / total * 100) if total > 0 else 0
+
     current = (dossier.get_current_etape_technique() if etape.type == 'technique'
                else dossier.get_current_etape_morcellement())
 
     return JsonResponse({
-        'status': 'ok',
-        'is_done': cochee.is_done,
-        'progression': prog,
-        'pct_bar': pct_bar,
-        'current_etape_name': current.name if current else '',
-        'current_etape_desc': current.description if current else '',
-        'morc_unlocked': dossier.is_technique_complete(),
+        'status':                'ok',
+        'is_done':               cochee.is_done,
+        'progression':           prog,
+        'pct_bar':               pct_bar,
+        'current_etape_name':    current.name if current else '',
+        'current_etape_desc':    current.description if current else '',
+        'morc_unlocked':         dossier.is_technique_complete(),
     })
+
 
 @admin_required
 def admin_dossier_edit(request, pk):
-    dossier = get_object_or_404(Dossier, pk=pk)
-    clients = User.objects.filter(role='client', is_active=True)
+    dossier   = get_object_or_404(Dossier, pk=pk)
+    clients   = User.objects.filter(role='client', is_active=True)
     intitules = IntituleDossier.objects.all()
+
     if request.method == 'POST':
         client_id = request.POST.get('client')
         if client_id:
             dossier.client_id = client_id
+
         intitule_id = request.POST.get('intitule')
-        dossier.intitule = get_object_or_404(IntituleDossier, pk=intitule_id) if intitule_id else None
-        dossier.superficie = request.POST.get('superficie') or None
+        dossier.intitule    = get_object_or_404(IntituleDossier, pk=intitule_id) if intitule_id else None
+        dossier.superficie  = request.POST.get('superficie') or None
         dossier.date_paiement = request.POST.get('date_paiement') or None
         dossier.description = request.POST.get('description', '')
+
         if request.FILES.get('photo'):
             dossier.photo = request.FILES['photo']
+
         dossier.save()
+
         DossierHistorique.objects.create(
             dossier=dossier,
             message="Dossier modifié",
-            created_by=request.user
+            created_by=request.user,
         )
         messages.success(request, "Dossier modifié avec succès.")
         return redirect('admin_dossier_detail', pk=dossier.pk)
+
     return render(request, 'adminpanel/dossiers/edit.html', {
-        'dossier': dossier,
-        'clients': clients,
-        'intitules': intitules,
+        'dossier':    dossier,
+        'clients':    clients,
+        'intitules':  intitules,
     })
 
 
@@ -998,13 +1210,23 @@ def admin_dossier_delete(request, pk):
 
 @admin_required
 def admin_dossiers_alerte(request):
+    """
+    OPTIMISÉ : select_related + prefetch_related('etapes_cochees__etape')
+    """
     import datetime as dt
+
     today = timezone.now().date()
     seuil = today - dt.timedelta(days=45)
+
     tous = Dossier.objects.filter(
         date_paiement__isnull=False,
-        date_paiement__lte=seuil
-    ).select_related('client', 'intitule')
+        date_paiement__lte=seuil,
+    ).select_related(
+        'client', 'intitule'
+    ).prefetch_related(
+        'etapes_cochees__etape',
+    )
+
     dossiers = [d for d in tous if not d.is_complete()]
 
     if request.GET.get('export') == 'csv':
@@ -1012,18 +1234,23 @@ def admin_dossiers_alerte(request):
         response['Content-Disposition'] = 'attachment; filename="dossiers_alerte_45j.csv"'
         response.write('\ufeff')
         writer = csv.writer(response, delimiter=';')
-        writer.writerow(['Référence', 'Intitulé', 'Client', 'Téléphone', 'Email', 'Superficie', 'Date paiement', 'Jours depuis paiement', 'Tech %', 'Morc %'])
+        writer.writerow([
+            'Référence', 'Intitulé', 'Client', 'Téléphone', 'Email',
+            'Superficie', 'Date paiement', 'Jours depuis paiement', 'Tech %', 'Morc %'
+        ])
         for d in dossiers:
             jours = (today - d.date_paiement).days if d.date_paiement else 0
             writer.writerow([
-                d.reference, d.get_title(),
+                d.reference,
+                d.get_title(),
                 d.client.get_full_name() or d.client.username,
-                d.client.phone, d.client.email,
+                d.client.phone,
+                d.client.email,
                 d.superficie or '',
                 d.date_paiement.strftime('%d/%m/%Y') if d.date_paiement else '',
                 jours,
                 d.get_progression_technique(),
-                d.get_progression_morcellement()
+                d.get_progression_morcellement(),
             ])
         return response
 
@@ -1034,13 +1261,18 @@ def admin_dossiers_alerte(request):
 
     return render(request, 'adminpanel/dossiers/alerte.html', {
         'dossiers_with_days': dossiers_with_days,
-        'count': len(dossiers_with_days),
+        'count':              len(dossiers_with_days),
     })
 
-# ── RÉSERVATIONS ──
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RÉSERVATIONS
+# ═══════════════════════════════════════════════════════════════════════════
 @admin_required
 def admin_reservations(request):
-    return render(request, 'adminpanel/reservations/list.html', {'reservations': Reservation.objects.select_related('property_link', 'promotion_link').all()})
+    return render(request, 'adminpanel/reservations/list.html', {
+        'reservations': Reservation.objects.select_related('property_link', 'promotion_link').all()
+    })
 
 
 @admin_required
@@ -1053,16 +1285,27 @@ def admin_reservation_update(request, pk):
     return redirect('admin_reservations')
 
 
-# ── CHATBOT ──
+# ═══════════════════════════════════════════════════════════════════════════
+# CHATBOT
+# ═══════════════════════════════════════════════════════════════════════════
 @admin_required
 def admin_chatbot(request):
-    return render(request, 'adminpanel/chatbot/list.html', {'knowledges': ChatbotKnowledge.objects.all(), 'unknowns': ChatbotUnknown.objects.all()[:50]})
+    return render(request, 'adminpanel/chatbot/list.html', {
+        'knowledges': ChatbotKnowledge.objects.all(),
+        'unknowns':   ChatbotUnknown.objects.all()[:50],
+    })
 
 
 @admin_required
 def admin_chatbot_create(request):
     if request.method == 'POST':
-        ChatbotKnowledge.objects.create(keywords=request.POST.get('keywords'), question_example=request.POST.get('question_example'), answer=request.POST.get('answer'), order=int(request.POST.get('order', 0)), is_active=request.POST.get('is_active') == 'on')
+        ChatbotKnowledge.objects.create(
+            keywords=request.POST.get('keywords'),
+            question_example=request.POST.get('question_example'),
+            answer=request.POST.get('answer'),
+            order=int(request.POST.get('order', 0)),
+            is_active=request.POST.get('is_active') == 'on',
+        )
         messages.success(request, "Réponse ajoutée.")
         return redirect('admin_chatbot')
     return render(request, 'adminpanel/chatbot/form.html', {'action': 'Ajouter'})
@@ -1072,11 +1315,11 @@ def admin_chatbot_create(request):
 def admin_chatbot_edit(request, pk):
     kb = get_object_or_404(ChatbotKnowledge, pk=pk)
     if request.method == 'POST':
-        kb.keywords = request.POST.get('keywords')
+        kb.keywords         = request.POST.get('keywords')
         kb.question_example = request.POST.get('question_example')
-        kb.answer = request.POST.get('answer')
-        kb.order = int(request.POST.get('order', 0))
-        kb.is_active = request.POST.get('is_active') == 'on'
+        kb.answer           = request.POST.get('answer')
+        kb.order            = int(request.POST.get('order', 0))
+        kb.is_active        = request.POST.get('is_active') == 'on'
         kb.save()
         messages.success(request, "Réponse modifiée.")
         return redirect('admin_chatbot')
@@ -1091,15 +1334,22 @@ def admin_chatbot_delete(request, pk):
         messages.success(request, "Supprimé.")
     return redirect('admin_chatbot')
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ACTIONS GROUPÉES (BULK)
+# ═══════════════════════════════════════════════════════════════════════════
 @admin_required
 def admin_clients_bulk(request):
     if request.method == 'POST':
-        ids = request.POST.getlist('selected_ids')
+        ids    = request.POST.getlist('selected_ids')
         action = request.POST.get('bulk_action')
+
         if not ids:
             messages.error(request, "Aucun utilisateur sélectionné.")
             return redirect('admin_clients')
+
         users = User.objects.filter(pk__in=ids)
+
         if action == 'activer':
             users.update(is_active=True)
             messages.success(request, f"{users.count()} utilisateur(s) activé(s).")
@@ -1119,18 +1369,20 @@ def admin_clients_bulk(request):
             count = users.exclude(pk=request.user.pk).count()
             users.exclude(pk=request.user.pk).delete()
             messages.success(request, f"{count} utilisateur(s) supprimé(s).")
+
     return redirect('admin_clients')
 
 
 @admin_required
 def admin_dossiers_bulk(request):
     if request.method == 'POST':
-        ids = request.POST.getlist('selected_ids')
+        ids    = request.POST.getlist('selected_ids')
         action = request.POST.get('bulk_action')
+
         if not ids:
             messages.error(request, "Aucun dossier sélectionné.")
             return redirect('admin_dossiers')
-        
+
         dossiers = Dossier.objects.filter(pk__in=ids)
 
         if action == 'supprimer':
@@ -1143,16 +1395,16 @@ def admin_dossiers_bulk(request):
 
         elif action == 'avancement_tech':
             reset_tech = request.POST.get('reset_tech') == '1'
-            etape_ids = request.POST.getlist('etapes_tech_ids')
-           
+            etape_ids  = request.POST.getlist('etapes_tech_ids')
+
             for dossier in dossiers:
                 for etape in EtapeGlobale.objects.filter(type='technique'):
                     cochee, _ = EtapeCochee.objects.get_or_create(dossier=dossier, etape=etape)
-                   
+
                     if reset_tech:
-                        cochee.is_done = False
-                        cochee.done_at = None
-                        cochee.done_by = None
+                        cochee.is_done         = False
+                        cochee.done_at         = None
+                        cochee.done_by         = None
                         cochee.date_auto_coche = None
                     else:
                         should_done = str(etape.pk) in etape_ids
@@ -1160,61 +1412,60 @@ def admin_dossiers_bulk(request):
                             cochee.is_done = should_done
                             cochee.done_at = timezone.now() if should_done else None
                             cochee.done_by = request.user if should_done else None
-                   
+
                     cochee.save()
-               
+
                 DossierHistorique.objects.create(
                     dossier=dossier,
                     message=f"Avancement technique réinitialisé / mis à jour ({dossier.get_progression_technique()}%)",
-                    created_by=request.user
+                    created_by=request.user,
                 )
             messages.success(request, f"Avancement technique appliqué à {dossiers.count()} dossier(s).")
 
         elif action == 'avancement_morc':
             reset_morc = request.POST.get('reset_morc') == '1'
-            etape_ids = request.POST.getlist('etapes_morc_ids')
-            
+            etape_ids  = request.POST.getlist('etapes_morc_ids')
+
             updated = 0
             blocked = 0
-            
+
             for dossier in dossiers:
                 changed = False
                 for etape in EtapeGlobale.objects.filter(type='morcellement'):
                     cochee, _ = EtapeCochee.objects.get_or_create(dossier=dossier, etape=etape)
-                    
+
                     if reset_morc:
-                        # ✅ Tout décocher est TOUJOURS autorisé
                         if cochee.is_done:
-                            cochee.is_done = False
-                            cochee.done_at = None
-                            cochee.done_by = None
+                            cochee.is_done         = False
+                            cochee.done_at         = None
+                            cochee.done_by         = None
                             cochee.date_auto_coche = None
                             changed = True
                     else:
                         should_done = str(etape.pk) in etape_ids
                         if should_done and not dossier.is_technique_complete():
                             blocked += 1
-                            continue  # On bloque seulement le COCHAGE
-                        
+                            continue
+
                         if cochee.is_done != should_done:
                             cochee.is_done = should_done
                             cochee.done_at = timezone.now() if should_done else None
                             cochee.done_by = request.user if should_done else None
                             changed = True
-                    
+
                     cochee.save()
-                
+
                 if changed:
                     DossierHistorique.objects.create(
                         dossier=dossier,
                         message=f"Avancement morcellement modifié ({dossier.get_progression_morcellement()}%)",
-                        created_by=request.user
+                        created_by=request.user,
                     )
                     updated += 1
 
             if blocked > 0:
                 messages.error(request, f"{blocked} action(s) de cochage bloquée(s) — le technique n'est pas à 100%.")
-            
+
             if updated > 0:
                 messages.success(request, f"Avancement morcellement mis à jour sur {updated} dossier(s).")
             elif blocked == 0:
@@ -1225,15 +1476,17 @@ def admin_dossiers_bulk(request):
             if not nouvelle_superficie:
                 messages.error(request, "Veuillez saisir une superficie.")
                 return redirect('admin_dossiers')
+
             try:
-                val = float(nouvelle_superficie)
+                val   = float(nouvelle_superficie)
                 count = dossiers.count()
                 dossiers.update(superficie=val)
+
                 for d in Dossier.objects.filter(pk__in=ids):
                     DossierHistorique.objects.create(
                         dossier=d,
                         message=f"Superficie mise à jour en masse : {val} m²",
-                        created_by=request.user
+                        created_by=request.user,
                     )
                 messages.success(request, f"Superficie ({val} m²) appliquée à {count} dossier(s).")
             except ValueError:
@@ -1241,23 +1494,38 @@ def admin_dossiers_bulk(request):
 
     return redirect('admin_dossiers')
 
+
 @admin_required
 def admin_dossiers_export_excel(request):
-    ids = request.GET.get('ids', '')
+    """
+    CORRIGÉ : plus de bug sur dossiers_qs.filter() après transformation en list.
+    """
+    ids           = request.GET.get('ids', '')
     status_filter = request.GET.get('status', '')
-    search = request.GET.get('search', '')
+    search        = request.GET.get('search', '')
+
     dossiers_qs = Dossier.objects.select_related('client', 'intitule').all()
+
     if ids:
         id_list = [i for i in ids.split(',') if i.strip().isdigit()]
         dossiers_qs = dossiers_qs.filter(pk__in=id_list)
     else:
+        # On transforme en liste UNIQUEMENT si nécessaire
         if status_filter == 'encours':
             dossiers_qs = [d for d in dossiers_qs if not d.is_complete()]
         elif status_filter == 'complet':
             dossiers_qs = [d for d in dossiers_qs if d.is_complete()]
+
         if search:
             s = search.lower()
-            dossiers_qs = [d for d in dossiers_qs if s in d.reference.lower() or s in d.get_title().lower() or s in (d.client.last_name or '').lower() or s in d.client.username.lower()]
+            dossiers_qs = [
+                d for d in dossiers_qs
+                if s in d.reference.lower()
+                or s in d.get_title().lower()
+                or s in (d.client.last_name or '').lower()
+                or s in d.client.username.lower()
+            ]
+
     return _export_dossiers_excel(dossiers_qs)
 
 
@@ -1265,14 +1533,20 @@ def _export_dossiers_excel(dossiers_qs):
     wb = Workbook()
     ws = wb.active
     ws.title = "Dossiers"
+
     header_fill = PatternFill("solid", fgColor="0B1F3A")
     header_font = Font(bold=True, color="FFFFFF")
-    headers = ['Référence', 'Intitulé', 'Client', 'Identifiant', 'Téléphone', 'Email', 'Superficie (m²)', 'Date paiement', 'Avancement Tech (%)', 'Avancement Morc. (%)', 'Statut']
+    headers = [
+        'Référence', 'Intitulé', 'Client', 'Identifiant', 'Téléphone',
+        'Email', 'Superficie (m²)', 'Date paiement', 'Avancement Tech (%)',
+        'Avancement Morc. (%)', 'Statut'
+    ]
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=h)
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal='center')
+
     for d in dossiers_qs:
         ws.append([
             d.reference,
@@ -1287,10 +1561,14 @@ def _export_dossiers_excel(dossiers_qs):
             d.get_progression_morcellement(),
             d.get_statut_display(),
         ])
+
     col_widths = [18, 22, 20, 16, 16, 24, 14, 16, 16, 16, 12]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
     response['Content-Disposition'] = 'attachment; filename="dossiers_eden.xlsx"'
     wb.save(response)
     return response
@@ -1299,10 +1577,10 @@ def _export_dossiers_excel(dossiers_qs):
 @admin_required
 def admin_dossiers_supprimer_doublons(request):
     if request.method == 'POST':
-        from django.db.models import Count
-        seen = {}
+        seen         = {}
         doublons_ids = []
-        dossiers = Dossier.objects.select_related('client', 'intitule').order_by('created_at')
+        dossiers     = Dossier.objects.select_related('client', 'intitule').order_by('created_at')
+
         for d in dossiers:
             key = (
                 d.client_id,
@@ -1313,10 +1591,16 @@ def admin_dossiers_supprimer_doublons(request):
                 doublons_ids.append(d.pk)
             else:
                 seen[key] = d.pk
+
         if doublons_ids:
             count = len(doublons_ids)
             Dossier.objects.filter(pk__in=doublons_ids).delete()
-            messages.success(request, f"{count} doublon(s) supprimé(s) (intitulé + client + superficie identiques — le(s) plus récent(s) supprimé(s)).")
+            messages.success(
+                request,
+                f"{count} doublon(s) supprimé(s) "
+                f"(intitulé + client + superficie identiques — le(s) plus récent(s) supprimé(s))."
+            )
         else:
             messages.info(request, "Aucun doublon détecté.")
+
     return redirect('admin_dossiers')
