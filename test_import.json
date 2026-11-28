@@ -1,0 +1,20 @@
+{
+    "clients": [
+        {
+            "username": "test.api.local",
+            "nom": "TEST API LOCAL",
+            "email": "test.api@edengroup.cm",
+            "phone": "699999999",
+            "city": "Yaoundé",
+            "sexe": "masculin",
+            "dossiers": [
+                {
+                    "intitule": "Test Import API",
+                    "superficie": 500,
+                    "date_paiement": "2026-11-27",
+                    "notes": "Client de test créé via API"
+                }
+            ]
+        }
+    ]
+}
