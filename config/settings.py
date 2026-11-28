@@ -109,8 +109,6 @@ LOGOUT_REDIRECT_URL = '/'
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 
-# Dans settings.py, assurez-vous que DEBUG est à True
-DEBUG = True
 
 LOGGING = {
     'version': 1,
