@@ -2,6 +2,7 @@ services:
   web:
     build: .
     container_name: eden_dossier_web
+    restart: always                     # ← AJOUTER
     ports:
       - "8001:8000"
     volumes:
